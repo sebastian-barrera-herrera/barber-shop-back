@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { isStaffAdmin, professionalScope } from '../../common/access';
+import { canSee, isStaffAdmin, professionalScope } from '../../common/access';
 import type { AuthUser } from '../../common/auth-user';
 import { Page, PageQuery, paging } from '../../common/pagination';
 import { assertNoNulls } from '../../common/utils/assert-no-nulls';
@@ -55,7 +55,8 @@ export class CustomersService {
 
   async list(user: AuthUser, query: ListCustomersQuery): Promise<Page<unknown>> {
     const { page, pageSize, skip, take } = paging(query);
-    const scope = professionalScope(user);
+    // Con el permiso de clientes ve la agenda de clientes completa; si no, solo a quienes atendió.
+    const scope = canSee(user, 'clients') ? {} : professionalScope(user);
     const where: Prisma.CustomerWhereInput = {
       businessId: user.bid,
       ...(scope.professionalId
@@ -224,7 +225,7 @@ export class CustomersService {
       where: {
         id,
         businessId: user.bid,
-        ...(isStaffAdmin(user)
+        ...(canSee(user, 'clients')
           ? {}
           : { appointments: { some: { professionalId: scope.professionalId } } }),
       },

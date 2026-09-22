@@ -7,6 +7,7 @@ import {
   IsEmail,
   IsHexColor,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUrl,
@@ -111,17 +112,27 @@ export class SetServicesDto {
   serviceIds!: string[];
 }
 
-export class CreateAccountDto {
+/** Invitación al panel: el profesional recibe un correo y elige su propia contraseña. */
+export class InviteProfessionalDto {
   @ApiProperty({ example: 'carlos@studio.local' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail({}, { message: 'Escribe un correo válido' })
   email!: string;
 
-  @ApiProperty({ minLength: 8 })
-  @IsString()
-  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
-  @MaxLength(128)
-  password!: string;
+  @ApiPropertyOptional({
+    description: 'Qué podrá ver en el panel',
+    example: { agenda: 'own', clients: false, messages: false, reports: false },
+  })
+  @IsOptional()
+  @IsObject()
+  access?: Record<string, unknown>;
+}
+
+/** Cambiar lo que ve un profesional dentro del panel. */
+export class UpdateAccessDto {
+  @ApiProperty({ example: { agenda: 'own', clients: true, messages: true, reports: false } })
+  @IsObject()
+  access!: Record<string, unknown>;
 }
 
 export class ListProfessionalsQuery {

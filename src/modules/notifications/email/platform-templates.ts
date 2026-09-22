@@ -97,3 +97,33 @@ export function passwordResetEmail(o: {
     ].join('\n'),
   };
 }
+
+/** Invitación a un profesional para que entre al panel del negocio. */
+export function invitationEmail(o: {
+  platform: string;
+  name: string;
+  businessName: string;
+  url: string;
+}): RenderedEmail {
+  const first = o.name.trim().split(/\s+/)[0];
+  const title = `${o.businessName} te dio acceso a su agenda`;
+  return {
+    subject: `${o.businessName} te invitó a su panel`,
+    html: platformLayout(
+      o.platform,
+      'Crea tu contraseña y entra.',
+      h1(title) +
+        p(
+          `Hola, ${escapeHtml(first)}. Desde el panel ves tus citas, tu calendario y tu horario, desde el celular o el computador.`,
+        ) +
+        button('Crear mi contraseña', o.url) +
+        p('El enlace dura 1 hora y sirve una sola vez. Si vence, pide otro al negocio.'),
+    ),
+    text: [
+      title,
+      '',
+      `Hola, ${first}. Desde el panel ves tus citas, tu calendario y tu horario.`,
+      `Crea tu contraseña aquí (dura 1 hora, sirve una vez): ${o.url}`,
+    ].join('\n'),
+  };
+}

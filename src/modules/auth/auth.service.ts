@@ -8,10 +8,12 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
 import type { AuthUser } from '../../common/auth-user';
+import type { ProfessionalAccess } from '../professionals/access.schema';
 import { AppConfig } from '../../config/app-config.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MAIL_TRANSPORT, type MailTransport } from '../notifications/email/mail-transport';
-import { passwordResetEmail } from '../notifications/email/platform-templates';
+import { invitationEmail, passwordResetEmail } from '../notifications/email/platform-templates';
+import { parseAccess } from '../professionals/access.schema';
 import { hashPassword, verifyPassword } from './password';
 
 export interface SessionMeta {
@@ -26,6 +28,8 @@ export interface SessionUser {
   role: AuthUser['role'];
   businessId: string;
   professionalId: string | null;
+  /** Qué ve en el panel, si es profesional */
+  access: ProfessionalAccess | null;
 }
 
 export interface Session {
@@ -58,7 +62,7 @@ export class AuthService {
   async startSession(userId: string, meta: SessionMeta = {}): Promise<Session> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      include: { professional: { select: { id: true } } },
+      include: { professional: { select: { id: true, access: true } } },
     });
     return this.issueSession(user, meta);
   }
@@ -74,21 +78,7 @@ export class AuthService {
     });
     if (!user || !user.isActive || !user.business.isActive) return;
 
-    const token = randomBytes(32).toString('base64url');
-    await this.prisma.$transaction([
-      // Un enlace vigente a la vez: pedir otro invalida los anteriores.
-      this.prisma.passwordResetToken.updateMany({
-        where: { userId: user.id, usedAt: null },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.passwordResetToken.create({
-        data: {
-          userId: user.id,
-          tokenHash: sha256(token),
-          expiresAt: new Date(Date.now() + RESET_TTL_MS),
-        },
-      }),
-    ]);
+    const token = await this.issueResetToken(user.id);
 
     const url = `${this.config.get('WEB_URL')}/restablecer?token=${encodeURIComponent(token)}`;
     const email_ = passwordResetEmail({
@@ -102,6 +92,33 @@ export class AuthService {
     }
     await this.mail.send({ to: user.email, ...email_ }).catch((err: Error) => {
       this.logger.error(`No se pudo enviar el correo de restablecer: ${err.message}`);
+    });
+  }
+
+  /**
+   * Invitación de un negocio a su profesional: mismo enlace de un solo uso, otro texto.
+   * Se llama después de crear su usuario.
+   */
+  async sendInvitation(o: { email: string; name: string; businessName: string }): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: o.email },
+      select: { id: true },
+    });
+    if (!user) return;
+    const token = await this.issueResetToken(user.id);
+    const url = `${this.config.get('WEB_URL')}/invitacion?token=${encodeURIComponent(token)}`;
+    if (!this.mail.enabled) {
+      this.logger.warn(`SMTP no configurado: la invitación de ${o.email} no salió.`);
+      return;
+    }
+    const email = invitationEmail({
+      platform: this.config.get('PLATFORM_NAME'),
+      name: o.name,
+      businessName: o.businessName,
+      url,
+    });
+    await this.mail.send({ to: o.email, ...email }).catch((err: Error) => {
+      this.logger.error(`No se pudo enviar la invitación: ${err.message}`);
     });
   }
 
@@ -127,7 +144,10 @@ export class AuthService {
   async login(email: string, password: string, meta: SessionMeta = {}): Promise<Session> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
-      include: { professional: { select: { id: true } }, business: { select: { isActive: true } } },
+      include: {
+        professional: { select: { id: true, access: true } },
+        business: { select: { isActive: true } },
+      },
     });
 
     const hash =
@@ -154,7 +174,7 @@ export class AuthService {
       include: {
         user: {
           include: {
-            professional: { select: { id: true } },
+            professional: { select: { id: true, access: true } },
             business: { select: { isActive: true } },
           },
         },
@@ -198,11 +218,30 @@ export class AuthService {
   async me(userId: string): Promise<SessionUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { professional: { select: { id: true } } },
+      include: { professional: { select: { id: true, access: true } } },
     });
     if (!user || !user.isActive)
       throw new UnauthorizedException('Tu sesión expiró. Vuelve a iniciar sesión');
     return this.toSessionUser(user);
+  }
+
+  /** Enlace de un solo uso (1 h). Pedir otro invalida los anteriores. */
+  private async issueResetToken(userId: string): Promise<string> {
+    const token = randomBytes(32).toString('base64url');
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          userId,
+          tokenHash: sha256(token),
+          expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        },
+      }),
+    ]);
+    return token;
   }
 
   private async revokeAll(userId: string) {
@@ -221,7 +260,9 @@ export class AuthService {
       sub: user.id,
       bid: user.businessId,
       role: user.role,
-      ...(sessionUser.professionalId ? { pid: sessionUser.professionalId } : {}),
+      ...(sessionUser.professionalId
+        ? { pid: sessionUser.professionalId, acc: parseAccess(user.professional?.access) }
+        : {}),
     };
     const accessToken = await this.jwt.signAsync(payload);
 
@@ -248,7 +289,7 @@ export class AuthService {
     email: string;
     role: AuthUser['role'];
     businessId: string;
-    professional: { id: string } | null;
+    professional: { id: string; access?: unknown } | null;
   }): SessionUser {
     return {
       id: user.id,
@@ -257,6 +298,7 @@ export class AuthService {
       role: user.role,
       businessId: user.businessId,
       professionalId: user.professional?.id ?? null,
+      access: user.professional ? parseAccess(user.professional.access) : null,
     };
   }
 }

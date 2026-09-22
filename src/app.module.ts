@@ -25,8 +25,10 @@ import { ProfessionalsModule } from './modules/professionals/professionals.modul
 import { ReportsModule } from './modules/reports/reports.module';
 import { SearchModule } from './modules/search/search.module';
 import { ServicesModule } from './modules/services/services.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { SubscriptionGuard } from './modules/subscription/subscription.guard';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -71,6 +73,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ChatModule,
     PaymentsModule,
     SettingsModule,
+    SubscriptionModule,
     UploadsModule,
     ReportsModule,
     SearchModule,
@@ -80,6 +83,8 @@ import { PrismaModule } from './prisma/prisma.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // Va al final: necesita el usuario que pone JwtAuthGuard.
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
   ],
 })

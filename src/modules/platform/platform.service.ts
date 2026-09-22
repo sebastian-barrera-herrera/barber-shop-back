@@ -82,6 +82,7 @@ export class PlatformService {
               whatsapp: phone,
               email: dto.email,
               city: dto.city || null,
+              trialEndsAt: new Date(Date.now() + this.config.get('TRIAL_DAYS') * 86_400_000),
               settings: {
                 create: {
                   // Sin colores propios: manda la paleta del estilo hasta que el dueño la cambie.

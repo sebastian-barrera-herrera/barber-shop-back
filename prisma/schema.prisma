@@ -96,6 +96,19 @@ enum BusinessStyle {
   BARBER
 }
 
+/// Estado de la suscripción del negocio con la plataforma.
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  YEARLY
+}
+
 model Business {
   id           String        @id @default(uuid()) @db.Uuid
   slug         String        @unique
@@ -117,21 +130,29 @@ model Business {
   logoUrl      String?
   heroImageUrl String?
   isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
 
-  settings       BusinessSettings?
-  users          User[]
-  categories     Category[]
-  services       Service[]
-  professionals  Professional[]
-  customers      Customer[]
-  appointments   Appointment[]
-  timeOff        TimeOff[]
-  payments       Payment[]
-  paymentConfigs PaymentProviderConfig[]
-  conversations  Conversation[]
-  notifications  Notification[]
+  /// Suscripción con la plataforma: al registrarse arranca con días de prueba.
+  trialEndsAt        DateTime?          @db.Timestamptz(3)
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  subscriptionPlan   SubscriptionPlan?
+  currentPeriodEnd   DateTime?          @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  settings             BusinessSettings?
+  users                User[]
+  categories           Category[]
+  services             Service[]
+  professionals        Professional[]
+  customers            Customer[]
+  appointments         Appointment[]
+  timeOff              TimeOff[]
+  payments             Payment[]
+  paymentConfigs       PaymentProviderConfig[]
+  conversations        Conversation[]
+  notifications        Notification[]
+  subscriptionPayments SubscriptionPayment[]
 
   @@map("businesses")
 }
@@ -246,6 +267,8 @@ model Professional {
   id          String    @id @default(uuid()) @db.Uuid
   businessId  String    @db.Uuid
   userId      String?   @unique @db.Uuid
+  /// Qué ve este profesional cuando entra con su cuenta (src/modules/professionals/access.schema.ts)
+  access      Json      @default("{}")
   name        String
   slug        String
   title       String?
@@ -492,4 +515,24 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// Pago de la suscripción del negocio a la plataforma (no es el pago de un cliente).
+model SubscriptionPayment {
+  id                String            @id @default(uuid()) @db.Uuid
+  businessId        String            @db.Uuid
+  plan              SubscriptionPlan
+  amountCents       Int
+  currency          String            @default("COP")
+  status            TransactionStatus @default(PENDING)
+  provider          String            @default("wompi")
+  providerReference String            @unique
+  transactionId     String?
+  paidAt            DateTime?         @db.Timestamptz(3)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@map("subscription_payments")
 }
