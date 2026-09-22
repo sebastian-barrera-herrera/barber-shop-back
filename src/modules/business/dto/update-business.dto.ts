@@ -9,6 +9,8 @@ import {
   IsOptional,
   IsString,
   IsTimeZone,
+  IsUrl,
+  ValidateIf,
   Length,
   MaxLength,
 } from 'class-validator';
@@ -90,4 +92,18 @@ export class UpdateBusinessDto {
   @IsOptional()
   @IsTimeZone()
   timezone?: string;
+
+  @ApiPropertyOptional({ nullable: true, description: 'URL del logo (subida con /uploads)' })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUrl({ require_tld: false })
+  @MaxLength(500)
+  logoUrl?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Imagen principal / para compartir' })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUrl({ require_tld: false })
+  @MaxLength(500)
+  heroImageUrl?: string | null;
 }

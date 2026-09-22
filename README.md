@@ -1,186 +1,190 @@
 # Studio Booking — API
 
-Backend de la plataforma de reservas para barberías, salones, spa y estudios de uñas.
-NestJS 11 · Prisma 6 · PostgreSQL 16 · TypeScript.
+Backend de la plataforma de reservas para barberías, salones de belleza, spa y estudios de uñas.
+**NestJS 11 · Prisma 6 · PostgreSQL 16 · TypeScript.**
 
-El frontend vive en [Barber-shop-front](https://github.com/sebastian-barrera-herrera/Barber-shop-front).
-Arquitectura y decisiones: [docs/PLAN_TECNICO.md](docs/PLAN_TECNICO.md).
+- Web (landing, reserva y panel): [Barber-shop-front](https://github.com/sebastian-barrera-herrera/Barber-shop-front)
+- Arquitectura y decisiones: [docs/PLAN_TECNICO.md](docs/PLAN_TECNICO.md)
+- Guías: [Wompi](docs/WOMPI.md) · [Despliegue](docs/DESPLIEGUE.md) · [Integraciones futuras](docs/INTEGRACIONES.md)
 
-## Estado
+## Qué incluye
 
-| Paso | Módulo | Estado |
-|---|---|---|
-| 1 | Arquitectura | ✅ |
-| 2 | Modelo de datos (todas las entidades + restricción anti doble reserva) | ✅ |
-| 3 | Backend base (config validada, guards globales, errores, Swagger, helmet, rate limit) | ✅ |
-| 4 | Autenticación (login, refresh rotativo, logout, roles) | ✅ |
-| 5 | Categorías y servicios (CRUD + catálogo público) | ✅ |
-| 6 | Profesionales (servicios que realiza, horario semanal, bloqueos, usuario de acceso) | ✅ |
-| 7 | Disponibilidad (motor puro + zona horaria del negocio) | ✅ |
-| 8 | Citas (reserva pública sin cuenta, reserva manual, mover, estados, enlace "mi cita") | ✅ |
-| 9 | Clientes (ficha, historial, búsqueda, sin duplicados por teléfono) | ✅ |
-| 10–11 | Landing y reserva (frontend) | ✅ |
-| 12 | Resumen para el dashboard (`GET /dashboard/summary`) + citas de demostración | ✅ |
-| 14+ | Chat, pagos, notificaciones, configuración… | Pendiente |
+| Área | Estado |
+|---|---|
+| Negocio multi-tenant (todas las tablas con `businessId`), auth con roles | ✅ |
+| Servicios, categorías, profesionales, horarios, bloqueos | ✅ |
+| Motor de disponibilidad (zona horaria, pausas, margen, anticipación) | ✅ |
+| Citas: reserva pública sin cuenta, manual, mover, estados, enlace privado | ✅ |
+| Clientes (sin duplicados por teléfono), dashboard, reportes, buscador | ✅ |
+| Chat cliente ↔ negocio (preparado para WhatsApp/Instagram/Messenger/Telegram) | ✅ |
+| Pagos con Wompi detrás de `PaymentProvider` (preparado para Stripe/PayU) | ✅ |
+| Notificaciones internas por eventos (preparado para email/WhatsApp/SMS/push) | ✅ |
+| Recordatorios 24 h / 2 h (listos; se activan con un canal hacia el cliente) | ✅ |
+| Configuración del negocio (marca, redes, horario, reservas), subida de imágenes | ✅ |
 
-## Requisitos
+---
 
-- Node.js 20 o superior
-- Docker (para PostgreSQL), o un PostgreSQL 16 propio
+## 1. Requisitos
 
-## Puesta en marcha
+- **Node.js 20+** (probado con 22 y 25)
+- **Docker** (para PostgreSQL) o un PostgreSQL 16 propio
+- npm 10+ (con npm 11, los scripts de instalación necesarios ya están aprobados en `allowScripts`)
+
+## 2. Instalación
 
 ```bash
-cp .env.example .env          # completa JWT_ACCESS_SECRET y SEED_ADMIN_PASSWORD
+git clone git@github.com:sebastian-barrera-herrera/barber-shop-back.git
+cd barber-shop-back
+cp .env.example .env
 npm install
-docker compose up -d db       # PostgreSQL en localhost:5432
-npm run prisma:deploy         # aplica migraciones
-npm run db:seed               # datos demo
-npm run start:dev             # http://localhost:4000/api/v1
 ```
 
-- Documentación interactiva: http://localhost:4000/api/docs
+## 3. Variables de entorno
+
+Todas están en [.env.example](.env.example). La app las valida al arrancar y se detiene con un mensaje claro si falta alguna.
+
+| Variable | Obligatoria | Para qué |
+|---|---|---|
+| `DATABASE_URL` | Sí | Conexión a PostgreSQL |
+| `JWT_ACCESS_SECRET` | Sí | Firma de sesiones, mínimo 32 caracteres |
+| `ENCRYPTION_KEY` | Para pagos | Cifra las llaves de Wompi guardadas (32 bytes en base64) |
+| `CORS_ORIGINS` | Sí | Dominio(s) de la web, separados por coma |
+| `WEB_URL` / `API_PUBLIC_URL` | Sí | URLs públicas (retorno del pago, URLs de imágenes) |
+| `COOKIE_SECURE` | Producción | `true` con HTTPS |
+| `COOKIE_DOMAIN` | Opcional | `.tudominio.com` si web y API usan subdominios |
+| `WOMPI_*` | Opcional | Llaves de respaldo si el negocio no las configura en el panel |
+| `REMINDERS_ENABLED` | Opcional | Recordatorios automáticos (requieren un canal hacia el cliente) |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Para el seed | Usuario administrador inicial |
+
+Generar secretos:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"   # JWT_ACCESS_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"      # ENCRYPTION_KEY
+```
+
+> El `.env` real nunca se sube al repositorio (`.gitignore` lo excluye).
+
+## 4. Base de datos
+
+```bash
+docker compose up -d db     # PostgreSQL en localhost:5432
+```
+
+Reglas del modelo ([prisma/schema.prisma](prisma/schema.prisma)):
+- Todas las tablas del negocio llevan `businessId`: cada negocio está aislado.
+- Fechas en UTC (`timestamptz`); cada negocio define su zona horaria.
+- Dinero en enteros (centavos): `$35.000 COP` → `priceCents: 3500000`.
+- Una **restricción de exclusión** de PostgreSQL impide que un profesional tenga dos citas activas que se crucen,
+  aunque dos personas reserven al mismo tiempo.
+
+## 5. Migraciones
+
+```bash
+npm run prisma:deploy    # aplica las migraciones (primera vez, producción, CI)
+npm run prisma:migrate   # crea una migración nueva tras cambiar el schema (desarrollo)
+npm run prisma:studio    # explorador visual de datos
+npm run db:reset         # borra TODO y recrea la base de desarrollo (pide confirmación)
+```
+
+## 6. Ejecución
+
+```bash
+npm run start:dev            # desarrollo con recarga: http://localhost:4000/api/v1
+npm run build && npm start   # producción
+```
+
+- Documentación interactiva (Swagger): http://localhost:4000/api/docs
 - Salud: http://localhost:4000/health
 
-> npm 11 bloquea los scripts de instalación por defecto. `package.json` ya aprueba los necesarios
-> (`argon2`, `prisma`, `@prisma/client`, `@prisma/engines`) en `allowScripts`.
-
-## Variables de entorno
-
-Ver [.env.example](.env.example). Las importantes:
-
-| Variable | Para qué |
-|---|---|
-| `DATABASE_URL` | Conexión a PostgreSQL |
-| `JWT_ACCESS_SECRET` | Firma de los tokens (mínimo 32 caracteres). Genera uno: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
-| `CORS_ORIGINS` | Orígenes del frontend permitidos, separados por coma |
-| `COOKIE_SECURE` | `true` en producción (HTTPS) |
-| `ENCRYPTION_KEY` | Cifra las credenciales de pago guardadas en BD (fase 2) |
-| `SEED_ADMIN_PASSWORD` | Contraseña de los usuarios demo |
-
-La app valida las variables al arrancar y se detiene con un mensaje claro si falta alguna.
-El `.env` real nunca se sube al repositorio.
-
-## Base de datos
+## 7. Docker
 
 ```bash
-npm run prisma:migrate   # crea una migración nueva tras cambiar prisma/schema.prisma (desarrollo)
-npm run prisma:deploy    # aplica migraciones pendientes (producción / CI)
-npm run prisma:studio    # explorador visual de datos
-npm run db:reset         # borra TODO y vuelve a crear la base de desarrollo (pide confirmación)
+docker compose up -d --build                  # PostgreSQL + API (migra al arrancar)
+docker compose exec api npx prisma db seed
 ```
 
-Reglas del modelo:
-- Todas las tablas del negocio llevan `businessId` (multi-negocio con esquema compartido).
-- Fechas en UTC (`timestamptz`); cada negocio define su `timezone`.
-- Dinero en enteros (centavos): `$35.000 COP` → `priceCents: 3500000`.
-- Una restricción de exclusión en PostgreSQL impide que un profesional tenga dos citas activas que se crucen.
+Todo el proyecto (base de datos + API + web), con el front clonado como carpeta hermana `../front-barber`:
 
-## Usuario administrador inicial
+```bash
+docker compose -f docker-compose.yml -f docker-compose.full.yml up -d --build
+# Puertos: API_PORT=4000 WEB_PORT=3000 (configurables)
+```
 
-`npm run db:seed` crea el negocio **Studio Demo** (`studio-demo`) con:
+## 8. Frontend
+
+Vive en su propio repositorio: [Barber-shop-front](https://github.com/sebastian-barrera-herrera/Barber-shop-front).
+Necesita `NEXT_PUBLIC_API_URL` apuntando a esta API y el dominio de la web en `CORS_ORIGINS`.
+
+## 9. Backend: estructura
+
+```
+src/
+  config/        variables validadas (zod)
+  common/        guards (JWT, roles), decoradores, eventos, utilidades (tiempo, teléfono, cifrado)
+  prisma/        cliente de base de datos
+  modules/
+    auth  business  settings  categories  services  professionals  availability
+    appointments  customers  dashboard  reports  search  chat  payments  notifications  uploads
+```
+
+Cada módulo expone un servicio; ninguno toca las tablas de otro directamente. Los módulos se comunican con
+**eventos de dominio** (`appointment.created`, `message.received`, `payment.updated`…), así agregar un canal
+de notificación no toca el código de citas.
+
+**API:** REST bajo `/api/v1`. Rutas públicas por negocio en `/public/:slug/...` (sin sesión, con límite de
+peticiones); el resto requiere sesión y toma el negocio del token, nunca del cuerpo de la petición.
+Detalle completo en Swagger.
+
+**Roles:** `OWNER` (todo) · `ADMIN` (operación diaria, sin configuración ni llaves de pago) ·
+`PROFESSIONAL` (su agenda, sus clientes, estados de sus citas, su horario).
+
+**Seguridad:** argon2id, sesión de 15 min con renovación rotativa en cookie httpOnly (detecta reutilización),
+helmet, CORS con lista blanca, límite de peticiones (login 5/min), validación estricta (rechaza campos no
+esperados), imágenes verificadas por contenido, secretos de pago cifrados (AES-256-GCM) y webhooks firmados.
+
+## 10. Usuario administrador inicial
+
+```bash
+npm run db:seed        # negocio "Studio Demo" (studio-demo)
+npm run db:seed:demo   # opcional: 18 clientes y ~270 citas de ejemplo para ver el panel con vida
+```
 
 | Usuario | Rol |
 |---|---|
 | `admin@studio.local` (o `SEED_ADMIN_EMAIL`) | Dueño |
 | `carlos@studio.local` · `maria@studio.local` · `laura@studio.local` | Profesional |
 
-Todos con la contraseña de `SEED_ADMIN_PASSWORD`.
+Todos con la contraseña de `SEED_ADMIN_PASSWORD`. Incluye 4 categorías, 17 servicios y horarios semanales.
+Ambos scripts son idempotentes: si los datos ya existen, no modifican nada.
 
-Para ver el panel con movimiento: `npm run db:seed:demo` agrega 18 clientes y unas 270 citas
-(14 días atrás y 7 adelante) respetando horarios y servicios de cada profesional. Es idempotente. Incluye 4 categorías, 17 servicios y horarios semanales
-(Carlos descansa los miércoles, Laura los lunes). Si el negocio ya existe, el seed no modifica nada.
+## 11. Wompi
 
-## Autenticación
+Resumen (guía completa en [docs/WOMPI.md](docs/WOMPI.md)):
+1. En el panel → **Pagos**: pega llave pública, privada, secreto de integridad y secreto de eventos.
+2. Copia la **URL de eventos** que muestra el panel en tu cuenta de Wompi.
+3. En **Configuración → Reservas** elige: no cobrar en línea, opcional u obligatorio.
 
-- `POST /api/v1/auth/login` → `{ accessToken, user }` + cookie `sb_rt` (httpOnly, SameSite=Lax).
-- El `accessToken` (15 min) va en `Authorization: Bearer …`.
-- `POST /api/v1/auth/refresh` usa la cookie, entrega un token nuevo y **rota** la cookie. Si alguien reutiliza
-  una cookie vieja, se cierran todas las sesiones del usuario.
-- Contraseñas con argon2id. Login limitado a 5 intentos por minuto por IP.
+El cliente paga desde el enlace de su cita. El backend firma la operación, Wompi procesa, el backend verifica
+el estado (webhook firmado y consulta directa) y la cita pasa a **pagada**. Con pago obligatorio, pagar confirma
+la cita. Las llaves privadas nunca llegan al navegador.
 
-Roles: `OWNER` (todo) · `ADMIN` (operación diaria) · `PROFESSIONAL` (sus citas y horario).
+## 12. Despliegue
 
-## API disponible
+Resumen (guía completa en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md)):
+PostgreSQL administrado + la imagen de `docker/Dockerfile` (migra al arrancar) + variables de producción
+(`NODE_ENV=production`, `COOKIE_SECURE=true`, secretos nuevos, `CORS_ORIGINS` y URLs reales) + HTTPS delante.
+Si hay más de un servidor, mover las imágenes a un almacenamiento S3 compatible (`StorageProvider`).
 
-Pública (sin login), por negocio:
-
-```
-GET  /public/:slug/business                        perfil, marca, horario, redes
-GET  /public/:slug/catalog                         carta de servicios agrupada por categoría
-GET  /public/:slug/services?category=              servicios activos
-GET  /public/:slug/services/:serviceSlug           detalle y profesionales que lo realizan
-GET  /public/:slug/professionals?serviceId=        equipo (opcionalmente, quién hace un servicio)
-GET  /public/:slug/availability?serviceId&professionalId&date     horas libres del día
-GET  /public/:slug/availability/days?serviceId&professionalId&from&to   días con cupo
-POST /public/:slug/appointments                    reservar (devuelve manageToken)
-GET  /public/:slug/appointments/by-token/:token    ver mi cita
-POST /public/:slug/appointments/by-token/:token/cancel
-```
-
-Privada (JWT; el negocio sale del token, nunca del cuerpo de la petición). Prefijo `/api/v1`:
-
-```
-POST /auth/login · POST /auth/refresh · POST /auth/logout · GET /auth/me
-GET/PATCH /business
-GET/POST/PATCH/DELETE /categories
-GET/POST/PATCH/DELETE /services            (DELETE es suave: conserva el historial de citas)
-GET/POST/PATCH/DELETE /professionals       (no se elimina si tiene citas próximas)
-PUT  /professionals/:id/services           qué servicios realiza
-GET/PUT /professionals/:id/working-hours   horario semanal (el profesional edita el suyo)
-POST /professionals/:id/account            usuario para entrar al panel (solo dueño)
-GET/POST/DELETE /time-off                  bloqueos y cierres; avisa si hay citas dentro
-GET  /availability                         horas libres (sin límites de anticipación)
-GET  /appointments?from&to&professionalId&serviceId&customerId&status&q
-GET  /appointments/:id
-POST /appointments                         reserva manual (allowOutsideHours opcional)
-PATCH /appointments/:id                    mover / cambiar servicio / notas / pago en el local
-POST /appointments/:id/status              PENDING → CONFIRMED → IN_PROGRESS → COMPLETED · CANCELLED · NO_SHOW
-GET  /dashboard/summary?date=           hoy: citas, ingresos, pendientes, agenda, ingresos 7 días, top servicios
-GET/POST/PATCH/DELETE /customers           (DELETE solo sin citas)
-GET  /customers/:id                        ficha con resumen (visitas, gastado, próxima cita)
-GET  /customers/:id/appointments           historial
-```
-
-### Cómo se calcula la disponibilidad
-
-`src/modules/availability/engine.ts` es una función pura:
-horas libres = (horario del profesional ∩ horario del negocio) − bloqueos − citas activas (± margen),
-filtrada por duración del servicio, anticipación mínima/máxima y paso configurado (15 min por defecto).
-Al reservar se vuelve a verificar en el servidor, y la restricción de la BD es la última red de seguridad:
-si dos personas reservan la misma hora a la vez, una recibe `409 "Esa hora acaba de ocuparse"`.
-
-Permisos: el profesional ve solo sus citas y sus clientes, cambia estados de sus citas y gestiona su propio
-horario y bloqueos. Crear o mover citas es de dueño/administrador.
+---
 
 ## Tests
 
 ```bash
-npm test            # unitarios
-npm run test:e2e    # e2e contra una base "<db>_test" que se crea sola (nunca la de desarrollo)
+npm test            # unitarios: motor de disponibilidad, firma Wompi, cifrado, recordatorios, tiempo, teléfono…
+npm run test:e2e    # extremo a extremo contra una base "<db>_test" que se crea sola (nunca la de desarrollo)
 ```
 
-Cubren: login y sesiones, permisos por rol, aislamiento entre negocios, servicios, profesionales,
-horarios, bloqueos, clientes y citas. El motor de disponibilidad tiene su propia batería (cita normal,
-cruces, profesional ocupado, día no laboral, bloqueos, servicios de 30/60 min, pausas, margen entre citas,
-anticipación, zona horaria con cambio de horario) y hay un test de 6 reservas simultáneas de la misma hora.
-
-## Docker
-
-```bash
-docker compose up -d --build   # PostgreSQL + API (aplica migraciones al arrancar)
-docker compose exec api npx prisma db seed   # opcional: datos demo
-```
-
-## Deployment
-
-1. PostgreSQL 16 administrado (Neon, Render, RDS…).
-2. Variables de entorno de producción: `NODE_ENV=production`, `COOKIE_SECURE=true`, `CORS_ORIGINS` con el dominio real,
-   secretos nuevos para `JWT_ACCESS_SECRET` y `ENCRYPTION_KEY`.
-3. Construir con `docker/Dockerfile`. Al arrancar corre `prisma migrate deploy`.
-4. Swagger queda apagado en producción salvo `SWAGGER_ENABLED=true`.
-
-## Wompi
-
-Se integra en la fase 2 detrás de la interfaz `PaymentProvider` (ver plan técnico, sección 7).
-Las variables `WOMPI_*` ya están reservadas en `.env.example`.
+El motor de disponibilidad cubre: cita normal, cruces, profesional ocupado, día no laboral, bloqueos,
+servicios de 30/60 min, pausas, margen, anticipación y zona horaria con cambio de horario. Hay un test de
+6 reservas simultáneas de la misma hora (solo una gana) y pruebas de aislamiento entre negocios.
