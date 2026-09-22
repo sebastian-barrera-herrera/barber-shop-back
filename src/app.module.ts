@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -10,19 +12,28 @@ import { AppConfigModule } from './config/config.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { BusinessModule } from './modules/business/business.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthController } from './modules/health/health.controller';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { ProfessionalsModule } from './modules/professionals/professionals.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { SearchModule } from './modules/search/search.module';
 import { ServicesModule } from './modules/services/services.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
     AppConfigModule,
     PrismaModule,
+    EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     JwtModule.registerAsync({
       global: true,
       inject: [AppConfig],
@@ -54,6 +65,13 @@ import { PrismaModule } from './prisma/prisma.module';
     CustomersModule,
     AppointmentsModule,
     DashboardModule,
+    NotificationsModule,
+    ChatModule,
+    PaymentsModule,
+    SettingsModule,
+    UploadsModule,
+    ReportsModule,
+    SearchModule,
   ],
   controllers: [HealthController],
   providers: [
