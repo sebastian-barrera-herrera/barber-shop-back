@@ -58,8 +58,8 @@ describe('Correos al cliente (e2e)', () => {
     const [mail] = mails;
     expect(mail.to).toBe('juan@correo.com');
     expect(mail.subject).toBe('Recibimos tu reserva en Negocio alpha');
-    expect(mail.html).toContain(`/cita/${res.body.manageToken}`);
-    expect(mail.text).toContain(`/cita/${res.body.manageToken}`);
+    expect(mail.html).toContain(`/alpha/cita/${res.body.manageToken}`);
+    expect(mail.text).toContain(`/alpha/cita/${res.body.manageToken}`);
     expect(mail.attachments?.[0]).toMatchObject({ filename: 'cita.ics' });
     expect(mail.attachments?.[0].content).toContain('SUMMARY:Corte · Negocio alpha');
   });

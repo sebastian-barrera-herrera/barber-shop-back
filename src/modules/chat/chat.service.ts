@@ -4,6 +4,7 @@ import { ChannelType, Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import type { AuthUser } from '../../common/auth-user';
 import { EVENTS, type MessageEvent } from '../../common/events';
+import { assertCanSee } from '../../common/access';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CHANNEL_ADAPTERS, type ChannelAdapter } from './channels/channel-adapter';
 
@@ -112,6 +113,7 @@ export class ChatService {
   // ───────────── Panel ─────────────
 
   async list(user: AuthUser) {
+    assertCanSee(user, 'messages');
     const conversations = await this.prisma.conversation.findMany({
       where: { businessId: user.bid },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
@@ -133,6 +135,7 @@ export class ChatService {
   }
 
   async messages(user: AuthUser, conversationId: string) {
+    assertCanSee(user, 'messages');
     const conversation = await this.findConversation(user.bid, conversationId);
     const messages = await this.prisma.message.findMany({
       where: { conversationId },
@@ -144,6 +147,7 @@ export class ChatService {
   }
 
   async markRead(user: AuthUser, conversationId: string) {
+    assertCanSee(user, 'messages');
     await this.findConversation(user.bid, conversationId);
     await this.prisma.$transaction([
       this.prisma.message.updateMany({
@@ -158,6 +162,7 @@ export class ChatService {
   }
 
   async send(user: AuthUser, conversationId: string, rawBody: string) {
+    assertCanSee(user, 'messages');
     const body = cleanBody(rawBody);
     const conversation = await this.findConversation(user.bid, conversationId);
     return this.writeAsStaff(user, conversation, body);
@@ -165,6 +170,7 @@ export class ChatService {
 
   /** Escribirle primero a un cliente (desde su ficha). */
   async startWith(user: AuthUser, customerId: string, rawBody: string) {
+    assertCanSee(user, 'messages');
     const body = cleanBody(rawBody);
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, businessId: user.bid },

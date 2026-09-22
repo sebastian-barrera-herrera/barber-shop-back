@@ -32,13 +32,13 @@ export interface RenderedEmail {
   text: string;
 }
 
-const PAPER = '#F4F0E8';
+export const PAPER = '#F4F0E8';
 const PAPER_2 = '#ECE6DA';
-const INK = '#141412';
-const STONE = '#6D675D';
-const LINE = '#D9D2C5';
-const SERIF = "Georgia, 'Iowan Old Style', 'Times New Roman', serif";
-const SANS = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+export const INK = '#141412';
+export const STONE = '#6D675D';
+export const LINE = '#D9D2C5';
+export const SERIF = "Georgia, 'Iowan Old Style', 'Times New Roman', serif";
+export const SANS = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
 export function escapeHtml(value: string): string {
   return value
@@ -146,7 +146,7 @@ ${
 </table>`;
 }
 
-function button(label: string, href: string) {
+export function button(label: string, href: string) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:28px;"><tr>
 <td style="background:${INK};border-radius:999px;"><a href="${escapeHtml(href)}" style="display:inline-block;padding:14px 26px;font-family:${SANS};font-size:15px;color:${PAPER};text-decoration:none;">${escapeHtml(label)}</a></td>
 </tr></table>`;

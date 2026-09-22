@@ -4,6 +4,28 @@
 > Repos: `barber-shop-back` (API) · `Barber-shop-front` (web). Ramas: `main` (estable) · `develop` (integración) · `feature/*`.
 
 
+## Replanteo: de un negocio a plataforma (2026-09-22)
+
+El producto es **FILO**, una plataforma para muchas empresas, no la web de un solo negocio:
+
+- **Registro libre**: cada barbería o spa crea su cuenta y recibe su página en `filo.com/<slug>`,
+  con servicios, horario y un profesional (el dueño) de ejemplo para poder reservar desde el primer minuto.
+- **Direcciones por ruta** (`/<slug>`), no por subdominio: sin DNS comodín ni certificados especiales.
+  Hay una lista de slugs reservados (`admin`, `registro`, `entrar`…).
+- **Estilo por empresa**: `Business.style` (`SPA` | `BARBER`) se elige al registrarse según el tipo de comercio
+  y viste **todas** sus vistas: página pública, reserva, "mi cita" y panel. Dentro de cada estilo, el dueño
+  elige entre sus paletas.
+- **El interruptor Spa / Barbería vive en la portada de FILO**, para que quien va a registrarse vea la
+  plataforma en su propio diseño. No es una opción del negocio ya creado.
+- **Suscripción**: al registrarse arrancan 14 días de prueba. El plan ($69.000 al mes o $690.000 al año)
+  se cobra con la cuenta de Wompi de la plataforma (`PLATFORM_WOMPI_*`). Si vence, el panel queda de
+  solo lectura y la página pública sigue recibiendo reservas.
+- **Equipo del negocio**: el dueño invita a sus profesionales por correo (ellos eligen su contraseña) y
+  decide qué ven en el panel: su agenda o la de todos, clientes, mensajes y reportes. Esos permisos
+  viajan en el token de acceso y los aplican el chat, los reportes y los clientes.
+- La API ya era multiempresa (`businessId` en todas las tablas); lo nuevo es el registro, el estilo,
+  recuperar contraseña y que los enlaces de correos y pagos apunten a `/<slug>/cita/…`.
+
 ## Estado de implementación (2026-09-22)
 
 | Fase | Hecho | Pendiente |

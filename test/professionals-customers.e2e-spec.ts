@@ -6,6 +6,7 @@ import {
   createBusiness,
   createScheduleFixture,
   createTestApp,
+  type CapturedMail,
   localIso,
   login,
   nextMonday,
@@ -15,6 +16,7 @@ import {
 describe('Profesionales y clientes (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let mails: CapturedMail[];
   let fx: Awaited<ReturnType<typeof createScheduleFixture>>;
   let owner: string;
   let admin: string;
@@ -24,7 +26,7 @@ describe('Profesionales y clientes (e2e)', () => {
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
 
   beforeAll(async () => {
-    ({ app, prisma } = await createTestApp());
+    ({ app, prisma, mails } = await createTestApp());
     await resetDatabase(prisma);
     const a = await createBusiness(prisma, 'alpha');
     fx = await createScheduleFixture(prisma, a.business.id, a.professional.id);
@@ -152,24 +154,81 @@ describe('Profesionales y clientes (e2e)', () => {
       expect(res.body[0].userId).toBeUndefined();
     });
 
-    it('crear usuario para el profesional (solo el dueño) y que pueda entrar', async () => {
+    it('invita al profesional por correo: él elige su contraseña y entra', async () => {
       await http()
-        .post(api(`/professionals/${lauraId}/account`))
+        .post(api(`/professionals/${lauraId}/invite`))
         .set(auth(admin))
-        .send({ email: 'laura@alpha.test', password: 'laura-clave-123' })
+        .send({ email: 'laura@alpha.test' })
         .expect(403);
+
+      mails.splice(0);
       const res = await http()
-        .post(api(`/professionals/${lauraId}/account`))
+        .post(api(`/professionals/${lauraId}/invite`))
         .set(auth(owner))
-        .send({ email: 'Laura@Alpha.test', password: 'laura-clave-123' });
+        .send({ email: 'Laura@Alpha.test', access: { agenda: 'all', messages: true } });
       expect(res.status).toBe(201);
       expect(res.body.account).toEqual({ email: 'laura@alpha.test', isActive: true });
+      expect(res.body.access).toMatchObject({ agenda: 'all', messages: true, reports: false });
+
+      // El correo trae el enlace para crear la contraseña; el dueño nunca la conoce.
+      const end = Date.now() + 3000;
+      while (!mails.length && Date.now() < end) await new Promise((r) => setTimeout(r, 30));
+      expect(mails[0]).toMatchObject({ to: 'laura@alpha.test' });
+      expect(mails[0].subject).toContain('te invitó a su panel');
+      const token = decodeURIComponent(mails[0].text.match(/\/invitacion\?token=(\S+)/)![1]);
+
+      await http()
+        .post(api('/auth/reset-password'))
+        .send({ token, password: 'laura-clave-123' })
+        .expect(204);
 
       const session = await login(app, 'laura@alpha.test', 'laura-clave-123');
       expect(session.res.body.user).toMatchObject({
         role: 'PROFESSIONAL',
         professionalId: lauraId,
+        access: { agenda: 'all', messages: true },
       });
+    });
+
+    it('los permisos deciden qué ve el profesional en el panel', async () => {
+      const laura = (await login(app, 'laura@alpha.test', 'laura-clave-123')).token;
+      // Con agenda 'all' y mensajes abiertos: ve conversaciones; reportes no.
+      await http().get(api('/conversations')).set(auth(laura)).expect(200);
+      await http()
+        .get(api('/reports'))
+        .query({ from: '2026-09-01', to: '2026-09-30' })
+        .set(auth(laura))
+        .expect(403);
+
+      await http()
+        .patch(api(`/professionals/${lauraId}/access`))
+        .set(auth(owner))
+        .send({ access: { agenda: 'own', clients: false, messages: false, reports: true } })
+        .expect(200);
+
+      const after = (await login(app, 'laura@alpha.test', 'laura-clave-123')).token;
+      await http().get(api('/conversations')).set(auth(after)).expect(403);
+      await http()
+        .get(api('/reports'))
+        .query({ from: '2026-09-01', to: '2026-09-30' })
+        .set(auth(after))
+        .expect(200);
+    });
+
+    it('el dueño puede quitarle el acceso', async () => {
+      await http()
+        .delete(api(`/professionals/${lauraId}/access`))
+        .set(auth(owner))
+        .expect(200);
+      const res = await http()
+        .post(api('/auth/login'))
+        .send({ email: 'laura@alpha.test', password: 'laura-clave-123' });
+      expect(res.status).toBe(401);
+      await http()
+        .post(api(`/professionals/${lauraId}/invite`))
+        .set(auth(owner))
+        .send({ email: 'laura@alpha.test' })
+        .expect(201);
     });
 
     it('no se elimina un profesional con citas próximas; sin citas sí (y se desactiva su usuario)', async () => {

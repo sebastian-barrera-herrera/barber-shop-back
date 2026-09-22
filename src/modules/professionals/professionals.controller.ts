@@ -17,7 +17,8 @@ import type { AuthUser } from '../../common/auth-user';
 import { BusinessId, CurrentUser, Public, Roles } from '../../common/decorators';
 import { BusinessService } from '../business/business.service';
 import {
-  CreateAccountDto,
+  InviteProfessionalDto,
+  UpdateAccessDto,
   CreateProfessionalDto,
   ListProfessionalsQuery,
   SetServicesDto,
@@ -99,15 +100,40 @@ export class ProfessionalsController {
     return this.professionals.setWorkingHours(user.bid, id, dto);
   }
 
-  @Post(':id/account')
+  @Post(':id/invite')
   @Roles('OWNER')
-  @ApiOperation({ summary: 'Crear usuario para que el profesional entre al panel' })
-  createAccount(
+  @ApiOperation({ summary: 'Invitar al profesional al panel (elige su contraseña por correo)' })
+  invite(
     @BusinessId() businessId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CreateAccountDto,
+    @Body() dto: InviteProfessionalDto,
   ) {
-    return this.professionals.createAccount(businessId, id, dto);
+    return this.professionals.invite(businessId, id, dto);
+  }
+
+  @Post(':id/invite/resend')
+  @Roles('OWNER')
+  @ApiOperation({ summary: 'Volver a enviar la invitación' })
+  resendInvite(@BusinessId() businessId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.professionals.resendInvitation(businessId, id);
+  }
+
+  @Delete(':id/access')
+  @Roles('OWNER')
+  @ApiOperation({ summary: 'Quitarle el acceso al panel' })
+  revokeAccess(@BusinessId() businessId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.professionals.revokeAccess(businessId, id);
+  }
+
+  @Patch(':id/access')
+  @Roles('OWNER')
+  @ApiOperation({ summary: 'Qué secciones ve el profesional en el panel' })
+  updateAccess(
+    @BusinessId() businessId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAccessDto,
+  ) {
+    return this.professionals.updateAccess(businessId, id, dto.access);
   }
 }
 

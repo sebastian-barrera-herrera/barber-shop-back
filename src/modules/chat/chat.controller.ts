@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagg
 import { Throttle } from '@nestjs/throttler';
 import { IsString, IsUUID, MaxLength } from 'class-validator';
 import type { AuthUser } from '../../common/auth-user';
+import { assertCanSee } from '../../common/access';
 import { BusinessId, CurrentUser, Public, Roles } from '../../common/decorators';
 import { BusinessService } from '../business/business.service';
 import { ChatService } from './chat.service';
@@ -22,7 +23,7 @@ class StartConversationDto extends MessageDto {
 
 @ApiTags('Mensajes')
 @ApiBearerAuth()
-@Roles('OWNER', 'ADMIN')
+// El profesional entra solo si el dueño le abrió los mensajes (assertCanSee en el servicio).
 @Controller('conversations')
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
@@ -35,8 +36,9 @@ export class ChatController {
 
   @Get('unread')
   @ApiOperation({ summary: 'Total de mensajes sin leer (para el contador del menú)' })
-  unread(@BusinessId() businessId: string) {
-    return this.chat.unreadCount(businessId);
+  unread(@CurrentUser() user: AuthUser) {
+    assertCanSee(user, 'messages');
+    return this.chat.unreadCount(user.bid);
   }
 
   @Post()

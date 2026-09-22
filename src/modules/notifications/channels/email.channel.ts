@@ -84,7 +84,7 @@ export class EmailChannel implements NotificationChannel {
     };
     const web = this.config.get('WEB_URL');
     const manageUrl = payload.manageToken
-      ? `${web}/cita/${encodeURIComponent(payload.manageToken)}`
+      ? `${web}/${ctx.slug}/cita/${encodeURIComponent(payload.manageToken)}`
       : undefined;
 
     let email: RenderedEmail;
@@ -103,7 +103,7 @@ export class EmailChannel implements NotificationChannel {
         withCalendar = true;
         break;
       case 'appointment.cancelled.byBusiness':
-        email = cancelledEmail(b, a, payload.reason ?? null, `${web}/reservar`);
+        email = cancelledEmail(b, a, payload.reason ?? null, `${web}/${ctx.slug}/reservar`);
         break;
       default:
         email = reminderEmail(b, a, n.type === 'reminder.2h' ? 'en 2 horas' : 'mañana');

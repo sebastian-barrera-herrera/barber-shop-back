@@ -24,6 +24,6 @@ import { RemindersService } from './reminders.service';
     NotificationsService,
     RemindersService,
   ],
-  exports: [NotificationsService, RemindersService],
+  exports: [NotificationsService, RemindersService, MAIL_TRANSPORT],
 })
 export class NotificationsModule {}

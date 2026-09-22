@@ -9,9 +9,12 @@ import { assertNoNulls } from '../../common/utils/assert-no-nulls';
 import { uniqueSlug } from '../../common/utils/slug';
 import { hhmmToMinutes, minutesToHhmm } from '../../common/utils/time';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthService } from '../auth/auth.service';
+import { parseAccess } from './access.schema';
+import { randomBytes } from 'node:crypto';
 import { hashPassword } from '../auth/password';
 import {
-  CreateAccountDto,
+  InviteProfessionalDto,
   CreateProfessionalDto,
   ListProfessionalsQuery,
   UpdateProfessionalDto,
@@ -46,7 +49,10 @@ export function toWeeklySchedule(
 
 @Injectable()
 export class ProfessionalsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auth: AuthService,
+  ) {}
 
   async list(businessId: string, query: ListProfessionalsQuery = {}) {
     const rows = await this.prisma.professional.findMany({
@@ -181,18 +187,68 @@ export class ProfessionalsService {
     return this.getWorkingHours(businessId, id);
   }
 
-  /** Crea el usuario con el que el profesional entra al panel. */
-  async createAccount(businessId: string, id: string, dto: CreateAccountDto) {
+  /**
+   * Invita al profesional al panel: crea su usuario sin contraseña utilizable y le manda
+   * un correo para que elija la suya. El dueño nunca conoce esa contraseña.
+   */
+  async invite(businessId: string, id: string, dto: InviteProfessionalDto) {
     const p = await this.findOrFail(businessId, id);
-    if (p.userId) throw new ConflictException(`${p.name} ya tiene un usuario`);
-    const passwordHash = await hashPassword(dto.password);
+    if (p.userId) throw new ConflictException(`${p.name} ya tiene acceso al panel`);
+    const taken = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true },
+    });
+    if (taken) throw new ConflictException('Ese correo ya tiene una cuenta');
+
+    const access = parseAccess(dto.access);
+    // Contraseña imposible de adivinar: solo sirve el enlace del correo.
+    const passwordHash = await hashPassword(randomBytes(24).toString('base64url'));
     await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: { businessId, email: dto.email, passwordHash, name: p.name, role: 'PROFESSIONAL' },
       });
-      await tx.professional.update({ where: { id }, data: { userId: user.id } });
+      await tx.professional.update({ where: { id }, data: { userId: user.id, access } });
     });
+    await this.sendInvitation(businessId, dto.email, p.name);
     return this.get(businessId, id);
+  }
+
+  /** Vuelve a mandar el correo de invitación (el enlace anterior deja de servir). */
+  async resendInvitation(businessId: string, id: string) {
+    const p = await this.findOrFail(businessId, id);
+    if (!p.user) throw new NotFoundException(`${p.name} todavía no tiene acceso`);
+    await this.sendInvitation(businessId, p.user.email, p.name);
+    return this.get(businessId, id);
+  }
+
+  /** Quita el acceso al panel: borra el usuario y cierra sus sesiones. */
+  async revokeAccess(businessId: string, id: string) {
+    const p = await this.findOrFail(businessId, id);
+    if (!p.userId) throw new NotFoundException(`${p.name} no tiene acceso al panel`);
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { userId: p.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.user.delete({ where: { id: p.userId } }),
+    ]);
+    return this.get(businessId, id);
+  }
+
+  /** Cambia qué secciones ve el profesional cuando entra con su cuenta. */
+  async updateAccess(businessId: string, id: string, raw: unknown) {
+    await this.findOrFail(businessId, id);
+    const access = parseAccess(raw);
+    await this.prisma.professional.update({ where: { id }, data: { access } });
+    return this.get(businessId, id);
+  }
+
+  private async sendInvitation(businessId: string, email: string, name: string) {
+    const business = await this.prisma.business.findUniqueOrThrow({
+      where: { id: businessId },
+      select: { name: true },
+    });
+    await this.auth.sendInvitation({ email, name, businessName: business.name });
   }
 
   // ───────────── Público ─────────────
@@ -241,6 +297,7 @@ export class ProfessionalsService {
       ...rest,
       services: services.map((s) => s.service),
       workingHours: toWeeklySchedule(workingHours),
+      access: parseAccess(rest.access),
       account: user ? { email: user.email, isActive: user.isActive } : null,
     };
   }
