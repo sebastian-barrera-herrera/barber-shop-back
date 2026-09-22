@@ -12,6 +12,8 @@ Backend de la plataforma de reservas para barberías, salones de belleza, spa y 
 | Área | Estado |
 |---|---|
 | Negocio multi-tenant (todas las tablas con `businessId`), auth con roles | ✅ |
+| Registro libre de empresas (`/platform/register`), direcciones libres y reservadas | ✅ |
+| Recuperar contraseña por correo (enlace de un solo uso, 1 h) | ✅ |
 | Servicios, categorías, profesionales, horarios, bloqueos | ✅ |
 | Motor de disponibilidad (zona horaria, pausas, margen, anticipación) | ✅ |
 | Citas: reserva pública sin cuenta, manual, mover, estados, enlace privado | ✅ |
@@ -55,7 +57,8 @@ Todas están en [.env.example](.env.example). La app las valida al arrancar y se
 | `COOKIE_DOMAIN` | Opcional | `.tudominio.com` si web y API usan subdominios |
 | `WOMPI_*` | Opcional | Llaves de respaldo si el negocio no las configura en el panel |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | Opcional | Servidor de correo (Gmail, Resend, SES, Mailgun…). Sin `SMTP_HOST` no se envían correos |
-| `MAIL_FROM` | Opcional | Remitente, p. ej. `Studio <reservas@tudominio.com>` |
+| `MAIL_FROM` | Opcional | Remitente, p. ej. `FILO <reservas@tudominio.com>` |
+| `PLATFORM_NAME` | Opcional | Marca de la plataforma en los correos propios (por defecto `FILO`) |
 | `REMINDERS_ENABLED` | Opcional | Recordatorios automáticos por correo (requieren SMTP) |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Para el seed | Usuario administrador inicial |
 
