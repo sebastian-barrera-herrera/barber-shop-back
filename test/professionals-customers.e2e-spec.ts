@@ -213,15 +213,12 @@ describe('Profesionales y clientes (e2e)', () => {
     let customerId: string;
 
     it('agregar cliente normaliza el teléfono y evita duplicados', async () => {
-      const res = await http()
-        .post(api('/customers'))
-        .set(auth(admin))
-        .send({
-          name: 'Juan Pérez',
-          phone: '(300) 123-4567',
-          email: 'JUAN@correo.com',
-          notes: 'Alérgico a la cera',
-        });
+      const res = await http().post(api('/customers')).set(auth(admin)).send({
+        name: 'Juan Pérez',
+        phone: '(300) 123-4567',
+        email: 'JUAN@correo.com',
+        notes: 'Alérgico a la cera',
+      });
       expect(res.status).toBe(201);
       expect(res.body).toMatchObject({ phone: '+573001234567', email: 'juan@correo.com' });
       customerId = res.body.id;
