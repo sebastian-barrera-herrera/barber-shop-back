@@ -8,7 +8,7 @@ export function refreshCookieOptions(config: AppConfig): CookieOptions {
   return {
     httpOnly: true,
     secure: config.get('COOKIE_SECURE'),
-    sameSite: 'lax',
+    sameSite: config.get('COOKIE_SAMESITE'),
     domain: config.get('COOKIE_DOMAIN'),
     path: '/api/v1/auth',
   };

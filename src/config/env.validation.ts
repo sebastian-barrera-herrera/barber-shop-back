@@ -17,6 +17,8 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   COOKIE_SECURE: bool,
+  /** 'none' cuando la web y la API están en dominios distintos (requiere COOKIE_SECURE=true). */
+  COOKIE_SAMESITE: z.enum(['lax', 'none', 'strict']).default('lax'),
   COOKIE_DOMAIN: z
     .string()
     .optional()
