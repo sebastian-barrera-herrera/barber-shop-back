@@ -5,8 +5,8 @@
  *   npm run db:seed
  */
 import { PrismaClient, Role } from '@prisma/client';
-import { slugify } from '../src/common/utils/slug';
-import { hashPassword } from '../src/modules/auth/password';
+import { slugify } from '../common/utils/slug';
+import { hashPassword } from '../modules/auth/password';
 
 const prisma = new PrismaClient();
 const SLUG = 'studio-demo';

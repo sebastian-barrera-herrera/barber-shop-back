@@ -7,7 +7,7 @@
  *   npm run db:seed:demo
  */
 import { AppointmentStatus, PrismaClient } from '@prisma/client';
-import { addDays, toLocalDate, weekdayOf, zonedToUtc } from '../src/common/utils/time';
+import { addDays, toLocalDate, weekdayOf, zonedToUtc } from '../common/utils/time';
 
 const prisma = new PrismaClient();
 const SLUG = process.env.SEED_BUSINESS_SLUG || 'studio-demo';
