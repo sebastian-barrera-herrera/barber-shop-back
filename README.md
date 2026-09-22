@@ -14,6 +14,8 @@ Backend de la plataforma de reservas para barberías, salones de belleza, spa y 
 | Negocio multi-tenant (todas las tablas con `businessId`), auth con roles | ✅ |
 | Registro libre de empresas (`/platform/register`), direcciones libres y reservadas | ✅ |
 | Recuperar contraseña por correo (enlace de un solo uso, 1 h) | ✅ |
+| Invitación de profesionales por correo y permisos por profesional | ✅ |
+| Suscripción del negocio: 14 días de prueba, plan mensual/anual y panel de solo lectura si vence | ✅ |
 | Servicios, categorías, profesionales, horarios, bloqueos | ✅ |
 | Motor de disponibilidad (zona horaria, pausas, margen, anticipación) | ✅ |
 | Citas: reserva pública sin cuenta, manual, mover, estados, enlace privado | ✅ |
