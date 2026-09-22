@@ -30,6 +30,8 @@ export function buildIcs(e: {
     'BEGIN:VEVENT',
     `UID:${e.uid}@studio-booking`,
     `DTSTAMP:${stamp(new Date())}`,
+    // Creciente: si la cita se mueve, el calendario reemplaza el evento en vez de duplicarlo.
+    `SEQUENCE:${Math.floor(Date.now() / 1000)}`,
     `DTSTART:${stamp(e.start)}`,
     `DTEND:${stamp(e.end)}`,
     `SUMMARY:${escape(e.title)}`,
