@@ -19,7 +19,9 @@ Arquitectura y decisiones: [docs/PLAN_TECNICO.md](docs/PLAN_TECNICO.md).
 | 7 | Disponibilidad (motor puro + zona horaria del negocio) | ✅ |
 | 8 | Citas (reserva pública sin cuenta, reserva manual, mover, estados, enlace "mi cita") | ✅ |
 | 9 | Clientes (ficha, historial, búsqueda, sin duplicados por teléfono) | ✅ |
-| 10+ | Landing, flujo de reserva, dashboard, calendario… (frontend) | Pendiente |
+| 10–11 | Landing y reserva (frontend) | ✅ |
+| 12 | Resumen para el dashboard (`GET /dashboard/summary`) + citas de demostración | ✅ |
+| 14+ | Chat, pagos, notificaciones, configuración… | Pendiente |
 
 ## Requisitos
 
@@ -83,7 +85,10 @@ Reglas del modelo:
 | `admin@studio.local` (o `SEED_ADMIN_EMAIL`) | Dueño |
 | `carlos@studio.local` · `maria@studio.local` · `laura@studio.local` | Profesional |
 
-Todos con la contraseña de `SEED_ADMIN_PASSWORD`. Incluye 4 categorías, 17 servicios y horarios semanales
+Todos con la contraseña de `SEED_ADMIN_PASSWORD`.
+
+Para ver el panel con movimiento: `npm run db:seed:demo` agrega 18 clientes y unas 270 citas
+(14 días atrás y 7 adelante) respetando horarios y servicios de cada profesional. Es idempotente. Incluye 4 categorías, 17 servicios y horarios semanales
 (Carlos descansa los miércoles, Laura los lunes). Si el negocio ya existe, el seed no modifica nada.
 
 ## Autenticación
@@ -131,6 +136,7 @@ GET  /appointments/:id
 POST /appointments                         reserva manual (allowOutsideHours opcional)
 PATCH /appointments/:id                    mover / cambiar servicio / notas / pago en el local
 POST /appointments/:id/status              PENDING → CONFIRMED → IN_PROGRESS → COMPLETED · CANCELLED · NO_SHOW
+GET  /dashboard/summary?date=           hoy: citas, ingresos, pendientes, agenda, ingresos 7 días, top servicios
 GET/POST/PATCH/DELETE /customers           (DELETE solo sin citas)
 GET  /customers/:id                        ficha con resumen (visitas, gastado, próxima cita)
 GET  /customers/:id/appointments           historial

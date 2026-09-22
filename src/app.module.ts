@@ -13,6 +13,7 @@ import { AvailabilityModule } from './modules/availability/availability.module';
 import { BusinessModule } from './modules/business/business.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthController } from './modules/health/health.controller';
 import { ProfessionalsModule } from './modules/professionals/professionals.module';
 import { ServicesModule } from './modules/services/services.module';
@@ -52,6 +53,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AvailabilityModule,
     CustomersModule,
     AppointmentsModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [
