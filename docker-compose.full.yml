@@ -8,6 +8,12 @@ services:
       CORS_ORIGINS: http://localhost:${WEB_PORT:-3000}
       WEB_URL: http://localhost:${WEB_PORT:-3000}
       API_PUBLIC_URL: http://localhost:${API_PORT:-4000}
+      # Correos al buzón de pruebas (http://localhost:8025)
+      SMTP_HOST: mail
+      SMTP_PORT: 1025
+    depends_on:
+      mail:
+        condition: service_started
 
   web:
     build:

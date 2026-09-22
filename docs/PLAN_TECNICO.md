@@ -9,7 +9,7 @@
 | Fase | Hecho | Pendiente |
 |---|---|---|
 | **1 · MVP** | Todo: modelo, auth y roles, CRUD completo, disponibilidad (con tests), citas, clientes, landing + SEO, reserva, "mi cita", dashboard, calendario, configuración, Docker, README | — |
-| **2** | Chat web · pagos Wompi (sandbox/producción, webhook firmado, verificación activa) · notificaciones internas · recordatorios (listos, esperan un canal) · reportes · buscador global | **Arrastrar citas en el calendario** (hoy se mueven desde el detalle) · **email de confirmación** (necesita un proveedor de correo: se agrega como `NotificationChannel`) |
+| **2** | Chat web · pagos Wompi (sandbox/producción, webhook firmado, verificación activa) · notificaciones internas · recordatorios 24 h / 2 h por correo · reportes · buscador global · **arrastrar citas en el calendario** · **correos al cliente** (reserva, confirmada, cambió de hora, cancelada por el negocio; con `.ics`) | — |
 | **3** | Solo interfaces preparadas, como estaba previsto: `ChannelAdapter` (WhatsApp/Instagram/Messenger/Telegram), `NotificationChannel` (email/SMS/push), `PaymentProvider` (Stripe/PayU), `StorageProvider` (S3/R2), eventos de dominio para Google Calendar, lat/lng para Google Maps | Las integraciones en sí |
 
 Cambios frente a este plan, decididos durante la implementación:

@@ -43,7 +43,7 @@ const DETAIL_INCLUDE = {
 } satisfies Prisma.AppointmentInclude;
 
 const PUBLIC_INCLUDE = {
-  customer: { select: { name: true } },
+  customer: { select: { name: true, phone: true, email: true } },
   professional: { select: { name: true, title: true, photoUrl: true } },
 } satisfies Prisma.AppointmentInclude;
 
@@ -124,7 +124,7 @@ export class AppointmentsService {
       }, TX_OPTIONS),
     );
 
-    this.emit(EVENTS.appointmentCreated, appointment, 'WEB');
+    this.emit(EVENTS.appointmentCreated, appointment, 'WEB', token);
     return { appointment: this.presentPublic(appointment, biz), manageToken: token };
   }
 
@@ -244,7 +244,7 @@ export class AppointmentsService {
         });
       }, TX_OPTIONS),
     );
-    this.emit(EVENTS.appointmentCreated, { ...created, customer: created.customer }, 'ADMIN');
+    this.emit(EVENTS.appointmentCreated, created, 'ADMIN', token);
     return { ...created, manageToken: token };
   }
 
@@ -269,7 +269,7 @@ export class AppointmentsService {
       );
     }
 
-    return this.withOverlapGuard(() =>
+    const updated = await this.withOverlapGuard(() =>
       this.prisma.$transaction(async (tx) => {
         const data: Prisma.AppointmentUncheckedUpdateInput = {
           notes: dto.notes,
@@ -311,6 +311,13 @@ export class AppointmentsService {
         });
       }, TX_OPTIONS),
     );
+    // Si cambió la hora, avisar al cliente (cambiar solo de profesional no le cambia el plan).
+    if (moved && startsAt.getTime() !== current.startsAt.getTime()) {
+      this.emit(EVENTS.appointmentRescheduled, updated, 'ADMIN', undefined, {
+        previousStartsAt: current.startsAt,
+      });
+    }
+    return updated;
   }
 
   async changeStatus(user: AuthUser, id: string, dto: ChangeStatusDto) {
@@ -335,7 +342,13 @@ export class AppointmentsService {
           : {}),
       },
     });
-    return this.get(user, id);
+    const updated = await this.get(user, id);
+    // Avisar al cliente cuando el negocio confirma una cita pendiente o la cancela.
+    if (dto.status === 'CANCELLED') this.emit(EVENTS.appointmentCancelled, updated, 'ADMIN');
+    if (dto.status === 'CONFIRMED' && appt.status === 'PENDING') {
+      this.emit(EVENTS.appointmentConfirmed, updated, 'ADMIN');
+    }
+    return updated;
   }
 
   // ───────────── helpers ─────────────
@@ -346,11 +359,17 @@ export class AppointmentsService {
       id: string;
       businessId: string;
       startsAt: Date;
+      status: string;
       serviceNameSnapshot: string;
-      customer: { name: string };
+      durationMinutes: number;
+      priceCents: number;
+      cancelReason?: string | null;
+      customer: { name: string; phone?: string; email?: string | null };
       professional: { name: string };
     },
     source: AppointmentEvent['source'],
+    manageToken?: string,
+    extra: Partial<AppointmentEvent> = {},
   ) {
     this.events.emit(event, {
       businessId: appt.businessId,
@@ -360,6 +379,15 @@ export class AppointmentsService {
       professionalName: appt.professional.name,
       startsAt: appt.startsAt,
       source,
+      customer: appt.customer.phone
+        ? { name: appt.customer.name, phone: appt.customer.phone, email: appt.customer.email }
+        : undefined,
+      status: appt.status,
+      durationMinutes: appt.durationMinutes,
+      priceCents: appt.priceCents,
+      cancelReason: appt.cancelReason,
+      manageToken,
+      ...extra,
     } satisfies AppointmentEvent);
   }
 

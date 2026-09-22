@@ -66,6 +66,10 @@ export class BusinessService {
         timezone: true,
         country: true,
         currency: true,
+        address: true,
+        city: true,
+        phone: true,
+        whatsapp: true,
         settings: true,
       },
     });
