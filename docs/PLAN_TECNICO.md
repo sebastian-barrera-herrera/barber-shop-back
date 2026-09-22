@@ -1,7 +1,24 @@
 # Studio Booking — Plan técnico
 
-> Estado: **propuesta para aprobación** · Fecha: 2026-09-21
+> Estado: **aprobado e implementado (fases 1 y 2)** · Plan: 2026-09-21 · Actualizado: 2026-09-22
 > Repos: `barber-shop-back` (API) · `Barber-shop-front` (web). Ramas: `main` (estable) · `develop` (integración) · `feature/*`.
+
+
+## Estado de implementación (2026-09-22)
+
+| Fase | Hecho | Pendiente |
+|---|---|---|
+| **1 · MVP** | Todo: modelo, auth y roles, CRUD completo, disponibilidad (con tests), citas, clientes, landing + SEO, reserva, "mi cita", dashboard, calendario, configuración, Docker, README | — |
+| **2** | Chat web · pagos Wompi (sandbox/producción, webhook firmado, verificación activa) · notificaciones internas · recordatorios (listos, esperan un canal) · reportes · buscador global | **Arrastrar citas en el calendario** (hoy se mueven desde el detalle) · **email de confirmación** (necesita un proveedor de correo: se agrega como `NotificationChannel`) |
+| **3** | Solo interfaces preparadas, como estaba previsto: `ChannelAdapter` (WhatsApp/Instagram/Messenger/Telegram), `NotificationChannel` (email/SMS/push), `PaymentProvider` (Stripe/PayU), `StorageProvider` (S3/R2), eventos de dominio para Google Calendar, lat/lng para Google Maps | Las integraciones en sí |
+
+Cambios frente a este plan, decididos durante la implementación:
+- **Next.js 16** (estable al momento de construir) en lugar de 15; **Prisma 6** y **NestJS 11** fijados (las versiones más nuevas eran demasiado recientes).
+- **Reserva en 4 pantallas** en lugar de 6 (fecha y hora juntas; datos y confirmación juntos).
+- Validación de formularios del front sin `react-hook-form`/`zod`: los formularios son cortos y el backend valida todo.
+- Animaciones críticas (título del hero, apariciones al hacer scroll) en **CSS puro** para no ocultar contenido esperando JavaScript.
+- Tonos secundarios de 4 estilos oscurecidos levemente para cumplir contraste AA sobre fondos de tarjeta.
+- Zonas horarias con `Intl` del propio runtime (sin `date-fns-tz`), en back y front, con tests de cambio de horario.
 
 ---
 

@@ -1,0 +1,27 @@
+# Todo el proyecto: PostgreSQL + API + Web.
+# Requiere el repo del front como carpeta hermana: ../front-barber
+#   docker compose -f docker-compose.yml -f docker-compose.full.yml up -d --build
+# Puertos configurables: API_PORT (4000) y WEB_PORT (3000).
+services:
+  api:
+    environment:
+      CORS_ORIGINS: http://localhost:${WEB_PORT:-3000}
+      WEB_URL: http://localhost:${WEB_PORT:-3000}
+      API_PUBLIC_URL: http://localhost:${API_PORT:-4000}
+
+  web:
+    build:
+      context: ../front-barber
+      dockerfile: docker/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-4000}/api/v1
+        NEXT_PUBLIC_BUSINESS_SLUG: ${BUSINESS_SLUG:-studio-demo}
+        NEXT_PUBLIC_SITE_URL: http://localhost:${WEB_PORT:-3000}
+    restart: unless-stopped
+    environment:
+      # El servidor de Next habla con la API por la red interna de Docker.
+      API_URL: http://api:4000/api/v1
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api

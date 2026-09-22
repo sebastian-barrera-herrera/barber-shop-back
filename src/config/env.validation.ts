@@ -1,0 +1,56 @@
+import { z } from 'zod';
+
+const bool = z
+  .enum(['true', 'false', '1', '0', ''])
+  .optional()
+  .transform((v) => v === 'true' || v === '1');
+
+export const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().int().positive().default(4000),
+  CORS_ORIGINS: z.string().default('http://localhost:3000'),
+  SWAGGER_ENABLED: bool,
+
+  DATABASE_URL: z.string().url(),
+
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET debe tener al menos 32 caracteres'),
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  COOKIE_SECURE: bool,
+  COOKIE_DOMAIN: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
+
+  ENCRYPTION_KEY: z.string().optional(),
+
+  /** URL pública de esta API (para armar URLs de archivos subidos). */
+  API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
+  /** URL pública de la web (para volver desde la pasarela de pago). */
+  WEB_URL: z.string().url().default('http://localhost:3000'),
+  UPLOADS_DIR: z.string().default('uploads'),
+
+  // Wompi: respaldo si el negocio no configuró sus llaves en el panel (modo un solo negocio).
+  WOMPI_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+  WOMPI_PUBLIC_KEY: z.string().optional(),
+  WOMPI_PRIVATE_KEY: z.string().optional(),
+  WOMPI_INTEGRITY_SECRET: z.string().optional(),
+  WOMPI_EVENTS_SECRET: z.string().optional(),
+
+  /** Recordatorios automáticos (requieren un canal hacia el cliente: email/WhatsApp/SMS). */
+  REMINDERS_ENABLED: bool,
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+/** Usado por ConfigModule: falla al arrancar si falta algo, con un mensaje claro. */
+export function validateEnv(raw: Record<string, unknown>): Env {
+  const parsed = envSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `  - ${i.path.join('.')}: ${i.message}`)
+      .join('\n');
+    throw new Error(`Variables de entorno inválidas:\n${issues}`);
+  }
+  return parsed.data;
+}
