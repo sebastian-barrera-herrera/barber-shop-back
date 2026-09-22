@@ -15,7 +15,11 @@ Arquitectura y decisiones: [docs/PLAN_TECNICO.md](docs/PLAN_TECNICO.md).
 | 3 | Backend base (config validada, guards globales, errores, Swagger, helmet, rate limit) | ✅ |
 | 4 | Autenticación (login, refresh rotativo, logout, roles) | ✅ |
 | 5 | Categorías y servicios (CRUD + catálogo público) | ✅ |
-| 6+ | Profesionales, disponibilidad, citas, clientes… | Pendiente |
+| 6 | Profesionales (servicios que realiza, horario semanal, bloqueos, usuario de acceso) | ✅ |
+| 7 | Disponibilidad (motor puro + zona horaria del negocio) | ✅ |
+| 8 | Citas (reserva pública sin cuenta, reserva manual, mover, estados, enlace "mi cita") | ✅ |
+| 9 | Clientes (ficha, historial, búsqueda, sin duplicados por teléfono) | ✅ |
+| 10+ | Landing, flujo de reserva, dashboard, calendario… (frontend) | Pendiente |
 
 ## Requisitos
 
@@ -97,20 +101,51 @@ Roles: `OWNER` (todo) · `ADMIN` (operación diaria) · `PROFESSIONAL` (sus cita
 Pública (sin login), por negocio:
 
 ```
-GET /api/v1/public/:slug/business              perfil, marca, horario, redes
-GET /api/v1/public/:slug/catalog               carta de servicios agrupada por categoría
-GET /api/v1/public/:slug/services?category=    servicios activos
-GET /api/v1/public/:slug/services/:serviceSlug detalle y profesionales que lo realizan
+GET  /public/:slug/business                        perfil, marca, horario, redes
+GET  /public/:slug/catalog                         carta de servicios agrupada por categoría
+GET  /public/:slug/services?category=              servicios activos
+GET  /public/:slug/services/:serviceSlug           detalle y profesionales que lo realizan
+GET  /public/:slug/professionals?serviceId=        equipo (opcionalmente, quién hace un servicio)
+GET  /public/:slug/availability?serviceId&professionalId&date     horas libres del día
+GET  /public/:slug/availability/days?serviceId&professionalId&from&to   días con cupo
+POST /public/:slug/appointments                    reservar (devuelve manageToken)
+GET  /public/:slug/appointments/by-token/:token    ver mi cita
+POST /public/:slug/appointments/by-token/:token/cancel
 ```
 
-Privada (JWT; el negocio sale del token, nunca del cuerpo de la petición):
+Privada (JWT; el negocio sale del token, nunca del cuerpo de la petición). Prefijo `/api/v1`:
 
 ```
 POST /auth/login · POST /auth/refresh · POST /auth/logout · GET /auth/me
 GET/PATCH /business
 GET/POST/PATCH/DELETE /categories
-GET/POST/PATCH/DELETE /services      (DELETE es suave: conserva el historial de citas)
+GET/POST/PATCH/DELETE /services            (DELETE es suave: conserva el historial de citas)
+GET/POST/PATCH/DELETE /professionals       (no se elimina si tiene citas próximas)
+PUT  /professionals/:id/services           qué servicios realiza
+GET/PUT /professionals/:id/working-hours   horario semanal (el profesional edita el suyo)
+POST /professionals/:id/account            usuario para entrar al panel (solo dueño)
+GET/POST/DELETE /time-off                  bloqueos y cierres; avisa si hay citas dentro
+GET  /availability                         horas libres (sin límites de anticipación)
+GET  /appointments?from&to&professionalId&serviceId&customerId&status&q
+GET  /appointments/:id
+POST /appointments                         reserva manual (allowOutsideHours opcional)
+PATCH /appointments/:id                    mover / cambiar servicio / notas / pago en el local
+POST /appointments/:id/status              PENDING → CONFIRMED → IN_PROGRESS → COMPLETED · CANCELLED · NO_SHOW
+GET/POST/PATCH/DELETE /customers           (DELETE solo sin citas)
+GET  /customers/:id                        ficha con resumen (visitas, gastado, próxima cita)
+GET  /customers/:id/appointments           historial
 ```
+
+### Cómo se calcula la disponibilidad
+
+`src/modules/availability/engine.ts` es una función pura:
+horas libres = (horario del profesional ∩ horario del negocio) − bloqueos − citas activas (± margen),
+filtrada por duración del servicio, anticipación mínima/máxima y paso configurado (15 min por defecto).
+Al reservar se vuelve a verificar en el servidor, y la restricción de la BD es la última red de seguridad:
+si dos personas reservan la misma hora a la vez, una recibe `409 "Esa hora acaba de ocuparse"`.
+
+Permisos: el profesional ve solo sus citas y sus clientes, cambia estados de sus citas y gestiona su propio
+horario y bloqueos. Crear o mover citas es de dueño/administrador.
 
 ## Tests
 
@@ -119,8 +154,10 @@ npm test            # unitarios
 npm run test:e2e    # e2e contra una base "<db>_test" que se crea sola (nunca la de desarrollo)
 ```
 
-Cubren: login, refresh con rotación y detección de reuso, logout, validación, permisos por rol,
-aislamiento entre negocios, CRUD de servicios y catálogo público.
+Cubren: login y sesiones, permisos por rol, aislamiento entre negocios, servicios, profesionales,
+horarios, bloqueos, clientes y citas. El motor de disponibilidad tiene su propia batería (cita normal,
+cruces, profesional ocupado, día no laboral, bloqueos, servicios de 30/60 min, pausas, margen entre citas,
+anticipación, zona horaria con cambio de horario) y hay un test de 6 reservas simultáneas de la misma hora.
 
 ## Docker
 

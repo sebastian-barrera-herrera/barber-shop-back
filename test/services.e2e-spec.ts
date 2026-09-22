@@ -129,16 +129,13 @@ describe('Categorías y servicios (e2e)', () => {
   });
 
   it('catálogo público: muestra servicios activos agrupados, sin datos internos', async () => {
-    await http()
-      .post(api('/services'))
-      .set(auth(adminA))
-      .send({
-        name: 'Servicio pausado',
-        priceCents: 100,
-        durationMinutes: 30,
-        categoryId,
-        isActive: false,
-      });
+    await http().post(api('/services')).set(auth(adminA)).send({
+      name: 'Servicio pausado',
+      priceCents: 100,
+      durationMinutes: 30,
+      categoryId,
+      isActive: false,
+    });
 
     const res = await http().get(api('/public/alpha/catalog'));
     expect(res.status).toBe(200);

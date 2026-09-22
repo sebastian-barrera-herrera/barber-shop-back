@@ -56,6 +56,23 @@ export class BusinessService {
     };
   }
 
+  /** Lo que necesitan la agenda y las reservas: zona horaria, país (teléfonos) y reglas. */
+  async getSchedulingContext(businessId: string) {
+    const business = await this.prisma.business.findUniqueOrThrow({
+      where: { id: businessId },
+      select: {
+        id: true,
+        name: true,
+        timezone: true,
+        country: true,
+        currency: true,
+        settings: true,
+      },
+    });
+    const { settings, ...rest } = business;
+    return { ...rest, settings: parseSettings(settings) };
+  }
+
   async get(businessId: string) {
     const business = await this.prisma.business.findUniqueOrThrow({
       where: { id: businessId },
