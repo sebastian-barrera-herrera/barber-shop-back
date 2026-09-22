@@ -1,14 +1,15 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthUser } from '../../common/auth-user';
 import { CurrentUser, Public } from '../../common/decorators';
 import { AppConfig } from '../../config/app-config.service';
 import { AuthService, Session } from './auth.service';
-import { LoginDto } from './dto/login.dto';
+import { REFRESH_COOKIE, refreshCookieOptions, sendSession } from './session-cookie';
 
-export const REFRESH_COOKIE = 'sb_rt';
+export { REFRESH_COOKIE };
+import { ForgotPasswordDto, LoginDto, ResetPasswordDto } from './dto/login.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -48,6 +49,26 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post('forgot-password')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Enviar enlace para restablecer la contraseña (responde igual si el correo no existe)',
+  })
+  async forgot(@Body() dto: ForgotPasswordDto) {
+    await this.auth.requestPasswordReset(dto.email);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('reset-password')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Elegir contraseña nueva con el enlace del correo' })
+  async reset(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  @Public()
   @Post('logout')
   @HttpCode(204)
   @ApiOperation({ summary: 'Cerrar sesión' })
@@ -64,21 +85,11 @@ export class AuthController {
   }
 
   private respond(session: Session, res: Response) {
-    res.cookie(REFRESH_COOKIE, session.refreshToken, {
-      ...this.cookieOptions(),
-      expires: session.refreshExpiresAt,
-    });
-    return { accessToken: session.accessToken, user: session.user };
+    return sendSession(session, res, this.config);
   }
 
-  private cookieOptions(): CookieOptions {
-    return {
-      httpOnly: true,
-      secure: this.config.get('COOKIE_SECURE'),
-      sameSite: 'lax',
-      domain: this.config.get('COOKIE_DOMAIN'),
-      path: '/api/v1/auth',
-    };
+  private cookieOptions() {
+    return refreshCookieOptions(this.config);
   }
 
   private meta(req: Request) {

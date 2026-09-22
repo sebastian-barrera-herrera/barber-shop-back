@@ -19,7 +19,8 @@ async function bootstrap() {
   }
 
   const port = config.get('PORT');
-  await app.listen(port);
+  // 0.0.0.0: en contenedores (Railway, Docker) el proxy entra desde fuera del contenedor.
+  await app.listen(port, '0.0.0.0');
   Logger.log(`API lista en http://localhost:${port}/api/v1 · docs en /api/docs`, 'Bootstrap');
 }
 

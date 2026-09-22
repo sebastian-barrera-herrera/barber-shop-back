@@ -17,6 +17,8 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   COOKIE_SECURE: bool,
+  /** 'none' cuando la web y la API están en dominios distintos (requiere COOKIE_SECURE=true). */
+  COOKIE_SAMESITE: z.enum(['lax', 'none', 'strict']).default('lax'),
   COOKIE_DOMAIN: z
     .string()
     .optional()
@@ -28,9 +30,20 @@ export const envSchema = z.object({
   API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
   /** URL pública de la web (para volver desde la pasarela de pago). */
   WEB_URL: z.string().url().default('http://localhost:3000'),
+  /** Nombre de la plataforma en correos y textos propios (no en los del negocio). */
+  PLATFORM_NAME: z.string().min(1).default('FILO'),
   UPLOADS_DIR: z.string().default('uploads'),
 
   // Wompi: respaldo si el negocio no configuró sus llaves en el panel (modo un solo negocio).
+  // Cobro de la suscripción de los negocios a la plataforma (cuenta de FILO, no la del negocio).
+  PLATFORM_WOMPI_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+  PLATFORM_WOMPI_PUBLIC_KEY: z.string().optional(),
+  PLATFORM_WOMPI_PRIVATE_KEY: z.string().optional(),
+  PLATFORM_WOMPI_INTEGRITY_SECRET: z.string().optional(),
+  PLAN_MONTHLY_CENTS: z.coerce.number().int().positive().default(6_900_000),
+  PLAN_YEARLY_CENTS: z.coerce.number().int().positive().default(69_000_000),
+  TRIAL_DAYS: z.coerce.number().int().min(0).max(90).default(14),
+
   WOMPI_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
   WOMPI_PUBLIC_KEY: z.string().optional(),
   WOMPI_PRIVATE_KEY: z.string().optional(),
@@ -52,7 +65,7 @@ export const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v || undefined),
-  MAIL_FROM: z.string().default('Studio <no-reply@studio.local>'),
+  MAIL_FROM: z.string().default('FILO <no-reply@filo.local>'),
 
   /** Recordatorios automáticos (requieren un canal hacia el cliente: email/WhatsApp/SMS). */
   REMINDERS_ENABLED: bool,

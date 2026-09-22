@@ -1,6 +1,8 @@
+import type { AuthUser } from '../../common/auth-user';
+import { assertCanSee } from '../../common/access';
+import { CurrentUser } from '../../common/decorators';
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { BusinessId, Roles } from '../../common/decorators';
 import { IsLocalDate } from '../../common/validation';
 import { ReportsService } from './reports.service';
 
@@ -11,7 +13,6 @@ class RangeQuery {
 
 @ApiTags('Reportes')
 @ApiBearerAuth()
-@Roles('OWNER', 'ADMIN')
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
@@ -20,7 +21,8 @@ export class ReportsController {
   @ApiOperation({
     summary: 'Citas realizadas y canceladas, ingresos, servicios y profesionales con más citas',
   })
-  summary(@BusinessId() businessId: string, @Query() q: RangeQuery) {
-    return this.reports.summary(businessId, q.from, q.to);
+  summary(@CurrentUser() user: AuthUser, @Query() q: RangeQuery) {
+    assertCanSee(user, 'reports');
+    return this.reports.summary(user.bid, q.from, q.to);
   }
 }

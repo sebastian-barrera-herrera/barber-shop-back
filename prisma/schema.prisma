@@ -89,41 +89,70 @@ enum MessageSender {
 
 // ───────────────────────────── Negocio ──────────────────────────────
 
+/// Estilo visual de todas las vistas del negocio (página, reserva, "mi cita" y panel).
+/// Se elige al registrarse según el tipo de comercio.
+enum BusinessStyle {
+  SPA
+  BARBER
+}
+
+/// Estado de la suscripción del negocio con la plataforma.
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  YEARLY
+}
+
 model Business {
-  id           String       @id @default(uuid()) @db.Uuid
-  slug         String       @unique
+  id           String        @id @default(uuid()) @db.Uuid
+  slug         String        @unique
   name         String
-  type         BusinessType @default(OTHER)
+  type         BusinessType  @default(OTHER)
+  style        BusinessStyle @default(SPA)
   description  String?
   phone        String?
   email        String?
   whatsapp     String?
   address      String?
   city         String?
-  country      String       @default("CO")
-  latitude     Decimal?     @db.Decimal(9, 6)
-  longitude    Decimal?     @db.Decimal(9, 6)
-  timezone     String       @default("America/Bogota")
-  currency     String       @default("COP")
-  locale       String       @default("es-CO")
+  country      String        @default("CO")
+  latitude     Decimal?      @db.Decimal(9, 6)
+  longitude    Decimal?      @db.Decimal(9, 6)
+  timezone     String        @default("America/Bogota")
+  currency     String        @default("COP")
+  locale       String        @default("es-CO")
   logoUrl      String?
   heroImageUrl String?
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
+  isActive     Boolean       @default(true)
 
-  settings        BusinessSettings?
-  users           User[]
-  categories      Category[]
-  services        Service[]
-  professionals   Professional[]
-  customers       Customer[]
-  appointments    Appointment[]
-  timeOff         TimeOff[]
-  payments        Payment[]
-  paymentConfigs  PaymentProviderConfig[]
-  conversations   Conversation[]
-  notifications   Notification[]
+  /// Suscripción con la plataforma: al registrarse arranca con días de prueba.
+  trialEndsAt        DateTime?          @db.Timestamptz(3)
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  subscriptionPlan   SubscriptionPlan?
+  currentPeriodEnd   DateTime?          @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  settings             BusinessSettings?
+  users                User[]
+  categories           Category[]
+  services             Service[]
+  professionals        Professional[]
+  customers            Customer[]
+  appointments         Appointment[]
+  timeOff              TimeOff[]
+  payments             Payment[]
+  paymentConfigs       PaymentProviderConfig[]
+  conversations        Conversation[]
+  notifications        Notification[]
+  subscriptionPayments SubscriptionPayment[]
 
   @@map("businesses")
 }
@@ -157,11 +186,12 @@ model User {
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
 
-  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  professional  Professional?
-  refreshTokens RefreshToken[]
-  messages      Message[]
-  notifications Notification[]
+  business       Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  professional   Professional?
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordResetToken[]
+  messages       Message[]
+  notifications  Notification[]
 
   @@index([businessId])
   @@map("users")
@@ -237,6 +267,8 @@ model Professional {
   id          String    @id @default(uuid()) @db.Uuid
   businessId  String    @db.Uuid
   userId      String?   @unique @db.Uuid
+  /// Qué ve este profesional cuando entra con su cuenta (src/modules/professionals/access.schema.ts)
+  access      Json      @default("{}")
   name        String
   slug        String
   title       String?
@@ -468,4 +500,39 @@ model Notification {
 
   @@index([businessId, readAt])
   @@map("notifications")
+}
+
+/// Enlace de "olvidé mi contraseña": se guarda solo el hash, dura 1 hora y se usa una vez.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+/// Pago de la suscripción del negocio a la plataforma (no es el pago de un cliente).
+model SubscriptionPayment {
+  id                String            @id @default(uuid()) @db.Uuid
+  businessId        String            @db.Uuid
+  plan              SubscriptionPlan
+  amountCents       Int
+  currency          String            @default("COP")
+  status            TransactionStatus @default(PENDING)
+  provider          String            @default("wompi")
+  providerReference String            @unique
+  transactionId     String?
+  paidAt            DateTime?         @db.Timestamptz(3)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@map("subscription_payments")
 }
