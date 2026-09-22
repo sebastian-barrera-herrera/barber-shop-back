@@ -7,10 +7,14 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AppConfig } from './config/app-config.service';
 import { AppConfigModule } from './config/config.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AvailabilityModule } from './modules/availability/availability.module';
 import { BusinessModule } from './modules/business/business.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { CustomersModule } from './modules/customers/customers.module';
 import { HealthController } from './modules/health/health.controller';
+import { ProfessionalsModule } from './modules/professionals/professionals.module';
 import { ServicesModule } from './modules/services/services.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -44,6 +48,10 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     CategoriesModule,
     ServicesModule,
+    ProfessionalsModule,
+    AvailabilityModule,
+    CustomersModule,
+    AppointmentsModule,
   ],
   controllers: [HealthController],
   providers: [
