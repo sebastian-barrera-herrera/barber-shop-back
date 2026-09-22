@@ -154,7 +154,7 @@ export class PaymentsService {
       reference,
       amountCents: appt.priceCents,
       currency: appt.business.currency,
-      redirectUrl: `${this.config.get('WEB_URL')}/cita/${encodeURIComponent(token)}?pago=1`,
+      redirectUrl: `${this.config.get('WEB_URL')}/${appt.business.slug}/cita/${encodeURIComponent(token)}?pago=1`,
       customer: {
         fullName: appt.customer.name,
         phone: appt.customer.phone,
@@ -360,7 +360,7 @@ export class PaymentsService {
   private async appointmentByToken(businessId: string, token: string) {
     const appt = await this.prisma.appointment.findFirst({
       where: { businessId, accessTokenHash: sha256Hex(token) },
-      include: { customer: true, business: { select: { currency: true } } },
+      include: { customer: true, business: { select: { currency: true, slug: true } } },
     });
     if (!appt) throw new NotFoundException('No encontramos esta cita. Revisa el enlace');
     return appt;

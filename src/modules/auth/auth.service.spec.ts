@@ -40,7 +40,10 @@ describe('AuthService', () => {
     const config = {
       get: (k: string) => (k === 'REFRESH_TOKEN_TTL_DAYS' ? 30 : undefined),
     } as AppConfig;
-    service = new AuthService(prisma as PrismaService, jwt, config);
+    service = new AuthService(prisma as PrismaService, jwt, config, {
+      enabled: false,
+      send: jest.fn(),
+    });
   });
 
   it('inicia sesión con credenciales correctas y guarda el refresh hasheado', async () => {

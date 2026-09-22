@@ -20,6 +20,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthController } from './modules/health/health.controller';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PlatformModule } from './modules/platform/platform.module';
 import { ProfessionalsModule } from './modules/professionals/professionals.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { SearchModule } from './modules/search/search.module';
@@ -66,6 +67,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AppointmentsModule,
     DashboardModule,
     NotificationsModule,
+    PlatformModule,
     ChatModule,
     PaymentsModule,
     SettingsModule,

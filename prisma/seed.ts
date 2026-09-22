@@ -133,6 +133,7 @@ const PROFESSIONALS = [
 ] as const;
 
 async function main() {
+  await seedBarberia();
   const existing = await prisma.business.findUnique({ where: { slug: SLUG } });
   if (existing) {
     console.log(`"${SLUG}" ya existe; no se modificó nada. Para empezar de cero: npm run db:reset`);
@@ -264,6 +265,156 @@ async function main() {
   console.log(`  Negocio: Studio Demo (slug "${SLUG}")`);
   console.log(`  Dueño:   ${adminEmail} (contraseña: SEED_ADMIN_PASSWORD)`);
   console.log('  Profesionales: carlos@, maria@, laura@studio.local (misma contraseña)');
+}
+
+/**
+ * Segunda empresa demo, con el estilo Barbería: sirve para ver los dos diseños
+ * y comprobar que cada empresa solo ve lo suyo.
+ */
+const BARBER_SLUG = 'barberia-demo';
+const BARBER_CATALOG = [
+  {
+    name: 'Cortes',
+    services: [
+      ['Corte clásico', 'Tijera y máquina, lavado y peinado con pomada.', 38_000, 45],
+      ['Fade', 'Degradado a máquina con acabado a navaja.', 42_000, 45],
+      ['Corte infantil', 'Para niños hasta 12 años.', 30_000, 30],
+    ],
+  },
+  {
+    name: 'Barba y afeitado',
+    services: [
+      ['Corte + barba', 'Corte completo y perfilado de barba con toalla caliente.', 55_000, 60],
+      ['Arreglo de barba', 'Perfilado, rebajado y aceite.', 25_000, 30],
+      ['Afeitado con toalla caliente', 'Espuma tibia, navaja y bálsamo.', 32_000, 30],
+    ],
+  },
+] as const;
+const BARBERS = [
+  {
+    name: 'Julián',
+    title: 'Barbero principal',
+    bio: 'Quince años de oficio. Cortes clásicos y afeitado a navaja.',
+    specialties: ['Clásico', 'Navaja'],
+    color: '#7A2E2E',
+    email: 'julian@barberia.local',
+  },
+  {
+    name: 'Esteban',
+    title: 'Barbero',
+    bio: 'Fades limpios y diseño de barba.',
+    specialties: ['Fade', 'Barba'],
+    color: '#2F3E35',
+    email: 'esteban@barberia.local',
+  },
+] as const;
+
+async function seedBarberia() {
+  if (await prisma.business.findUnique({ where: { slug: BARBER_SLUG } })) return;
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  if (!password || password.length < 8) return;
+  const passwordHash = await hashPassword(password);
+
+  await prisma.$transaction(
+    async (tx) => {
+      const business = await tx.business.create({
+        data: {
+          slug: BARBER_SLUG,
+          name: 'Barbería Demo',
+          style: 'BARBER',
+          type: 'BARBERSHOP',
+          description: 'Barbería clásica: cortes, barba y afeitado con toalla caliente.',
+          phone: '+573005550100',
+          whatsapp: '+573005550100',
+          email: 'hola@barberia.local',
+          address: 'Carrera 43A # 9-50',
+          city: 'Medellín',
+          settings: {
+            create: {
+              branding: {
+                preset: 'clasico',
+                primaryColor: '#1C1B1A',
+                secondaryColor: '#B23A3A',
+                heroTitle: 'El buen corte no pasa de moda.',
+                heroSubtitle: 'Reserva tu silla en un minuto. Sin llamadas, sin esperas.',
+              },
+              social: { instagram: 'https://instagram.com/barberia', whatsapp: '+573005550100' },
+              booking: { slotStepMinutes: 15, autoConfirm: true },
+            },
+          },
+        },
+      });
+      await tx.user.create({
+        data: {
+          businessId: business.id,
+          email: 'barberia@studio.local',
+          passwordHash,
+          name: 'Dueño Barbería',
+          role: Role.OWNER,
+        },
+      });
+      const serviceIds: string[] = [];
+      for (const [ci, category] of BARBER_CATALOG.entries()) {
+        const cat = await tx.category.create({
+          data: {
+            businessId: business.id,
+            name: category.name,
+            slug: slugify(category.name),
+            sortOrder: ci,
+          },
+        });
+        for (const [si, [name, description, price, duration]] of category.services.entries()) {
+          const service = await tx.service.create({
+            data: {
+              businessId: business.id,
+              categoryId: cat.id,
+              name,
+              slug: slugify(name),
+              description,
+              priceCents: pesos(price),
+              durationMinutes: duration,
+              sortOrder: si,
+            },
+          });
+          serviceIds.push(service.id);
+        }
+      }
+      for (const [pi, b] of BARBERS.entries()) {
+        const user = await tx.user.create({
+          data: {
+            businessId: business.id,
+            email: b.email,
+            passwordHash,
+            name: b.name,
+            role: Role.PROFESSIONAL,
+          },
+        });
+        await tx.professional.create({
+          data: {
+            businessId: business.id,
+            userId: user.id,
+            name: b.name,
+            slug: slugify(b.name),
+            title: b.title,
+            bio: b.bio,
+            specialties: [...b.specialties],
+            color: b.color,
+            sortOrder: pi,
+            services: { create: serviceIds.map((serviceId) => ({ serviceId })) },
+            workingHours: {
+              create: [1, 2, 3, 4, 5, 6].map((weekday) => ({
+                weekday,
+                startMinute: hm(weekday === 6 ? 9 : 10),
+                endMinute: hm(weekday === 6 ? 16 : 20),
+              })),
+            },
+          },
+        });
+      }
+    },
+    { timeout: 30_000 },
+  );
+  console.log('  Barbería Demo (slug "barberia-demo"): barberia@studio.local');
 }
 
 main()

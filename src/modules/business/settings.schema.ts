@@ -9,7 +9,11 @@ import { z } from 'zod';
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color inválido');
 
 export const brandingSchema = z.object({
-  preset: z.enum(['studio', 'barber', 'spa', 'nails', 'beauty']).default('studio'),
+  // Paletas del estilo Spa: studio, barber, spa, nails, beauty.
+  // Paletas del estilo Barbería: clasico (rojo), ingles (verde), ebano (negro y oro).
+  preset: z
+    .enum(['studio', 'barber', 'spa', 'nails', 'beauty', 'clasico', 'ingles', 'ebano'])
+    .default('studio'),
   primaryColor: hex.default('#141412'),
   secondaryColor: hex.default('#A8854A'),
   fontPreset: z.enum(['editorial', 'modern', 'classic']).default('editorial'),

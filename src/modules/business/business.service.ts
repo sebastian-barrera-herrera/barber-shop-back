@@ -29,6 +29,7 @@ export class BusinessService {
       slug: business.slug,
       name: business.name,
       type: business.type,
+      style: business.style,
       description: business.description,
       phone: business.phone,
       email: business.email,
@@ -62,6 +63,7 @@ export class BusinessService {
       where: { id: businessId },
       select: {
         id: true,
+        slug: true,
         name: true,
         timezone: true,
         country: true,

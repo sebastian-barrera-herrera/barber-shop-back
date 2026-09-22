@@ -28,6 +28,8 @@ export const envSchema = z.object({
   API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
   /** URL pública de la web (para volver desde la pasarela de pago). */
   WEB_URL: z.string().url().default('http://localhost:3000'),
+  /** Nombre de la plataforma en correos y textos propios (no en los del negocio). */
+  PLATFORM_NAME: z.string().min(1).default('FILO'),
   UPLOADS_DIR: z.string().default('uploads'),
 
   // Wompi: respaldo si el negocio no configuró sus llaves en el panel (modo un solo negocio).
@@ -52,7 +54,7 @@ export const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v || undefined),
-  MAIL_FROM: z.string().default('Studio <no-reply@studio.local>'),
+  MAIL_FROM: z.string().default('FILO <no-reply@filo.local>'),
 
   /** Recordatorios automáticos (requieren un canal hacia el cliente: email/WhatsApp/SMS). */
   REMINDERS_ENABLED: bool,

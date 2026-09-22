@@ -308,7 +308,7 @@ describe('Fase 2: chat, notificaciones, pagos, configuración, archivos, reporte
       expect(url.searchParams.get('signature:integrity')).toBe(
         sha(`${reference}3500000COP${secrets.integritySecret}`),
       );
-      expect(url.searchParams.get('redirect-url')).toContain(`/cita/${token}?pago=1`);
+      expect(url.searchParams.get('redirect-url')).toContain(`/alpha/cita/${token}?pago=1`);
 
       const view = await http().get(api(`/public/alpha/appointments/by-token/${token}`));
       expect(view.body.paymentStatus).toBe('PENDING');
