@@ -269,7 +269,7 @@ export class AppointmentsService {
       );
     }
 
-    return this.withOverlapGuard(() =>
+    const updated = await this.withOverlapGuard(() =>
       this.prisma.$transaction(async (tx) => {
         const data: Prisma.AppointmentUncheckedUpdateInput = {
           notes: dto.notes,
@@ -311,6 +311,13 @@ export class AppointmentsService {
         });
       }, TX_OPTIONS),
     );
+    // Si cambió la hora, avisar al cliente (cambiar solo de profesional no le cambia el plan).
+    if (moved && startsAt.getTime() !== current.startsAt.getTime()) {
+      this.emit(EVENTS.appointmentRescheduled, updated, 'ADMIN', undefined, {
+        previousStartsAt: current.startsAt,
+      });
+    }
+    return updated;
   }
 
   async changeStatus(user: AuthUser, id: string, dto: ChangeStatusDto) {
@@ -362,6 +369,7 @@ export class AppointmentsService {
     },
     source: AppointmentEvent['source'],
     manageToken?: string,
+    extra: Partial<AppointmentEvent> = {},
   ) {
     this.events.emit(event, {
       businessId: appt.businessId,
@@ -379,6 +387,7 @@ export class AppointmentsService {
       priceCents: appt.priceCents,
       cancelReason: appt.cancelReason,
       manageToken,
+      ...extra,
     } satisfies AppointmentEvent);
   }
 

@@ -4,6 +4,7 @@ import {
   confirmedEmail,
   escapeHtml,
   reminderEmail,
+  rescheduledEmail,
   type EmailAppointment,
   type EmailBusiness,
 } from './templates';
@@ -80,5 +81,14 @@ describe('plantillas de correo', () => {
     const r = reminderEmail(business, appt(), 'mañana');
     expect(r.subject).toMatch(/^Recordatorio: tu cita en Studio Demo es mañana a las 4:00/);
     expect(r.html).not.toContain('Total'); // el recordatorio no repite el cobro
+  });
+
+  it('cita movida: dice la hora de antes y la nueva', () => {
+    const e = rescheduledEmail(business, appt(), new Date('2026-09-25T15:00:00Z'));
+    expect(e.subject).toMatch(
+      /^Tu cita en Studio Demo cambió: viernes, 25 de septiembre a las 4:00/,
+    );
+    expect(e.text).toContain('Antes: viernes, 25 de septiembre a las 10:00');
+    expect(e.text).toContain('Ahora: viernes, 25 de septiembre a las 4:00');
   });
 });

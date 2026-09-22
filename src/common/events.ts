@@ -6,6 +6,7 @@ export const EVENTS = {
   appointmentCreated: 'appointment.created',
   appointmentCancelled: 'appointment.cancelled',
   appointmentConfirmed: 'appointment.confirmed',
+  appointmentRescheduled: 'appointment.rescheduled',
   messageReceived: 'message.received',
   paymentUpdated: 'payment.updated',
 } as const;
@@ -26,6 +27,8 @@ export interface AppointmentEvent {
   cancelReason?: string | null;
   /** Solo al crear la cita: el token del enlace privado (nunca se guarda en claro) */
   manageToken?: string;
+  /** Al mover una cita: cuándo era antes */
+  previousStartsAt?: Date;
 }
 
 export interface MessageEvent {

@@ -8,6 +8,7 @@ import {
   cancelledEmail,
   confirmedEmail,
   reminderEmail,
+  rescheduledEmail,
   type EmailAppointment,
   type EmailBusiness,
   type RenderedEmail,
@@ -20,6 +21,7 @@ export interface EmailPayload {
   appointment: EmailAppointment & { startsAt: string | Date };
   manageToken?: string;
   reason?: string | null;
+  previousStartsAt?: string | Date;
 }
 
 const ACCENT: Record<string, string> = {
@@ -32,6 +34,7 @@ const ACCENT: Record<string, string> = {
 const SUPPORTED = [
   'appointment.booked',
   'appointment.confirmed',
+  'appointment.rescheduled',
   'appointment.cancelled.byBusiness',
   'reminder.24h',
   'reminder.2h',
@@ -93,6 +96,10 @@ export class EmailChannel implements NotificationChannel {
         break;
       case 'appointment.confirmed':
         email = confirmedEmail(b, a);
+        withCalendar = true;
+        break;
+      case 'appointment.rescheduled':
+        email = rescheduledEmail(b, a, new Date(payload.previousStartsAt ?? a.startsAt));
         withCalendar = true;
         break;
       case 'appointment.cancelled.byBusiness':

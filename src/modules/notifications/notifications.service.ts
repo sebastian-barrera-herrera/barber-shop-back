@@ -66,6 +66,11 @@ export class NotificationsService {
     });
   }
 
+  @OnEvent(EVENTS.appointmentRescheduled, { async: true })
+  async onAppointmentRescheduled(e: AppointmentEvent) {
+    await this.toCustomer(e, 'appointment.rescheduled');
+  }
+
   @OnEvent(EVENTS.appointmentConfirmed, { async: true })
   async onAppointmentConfirmed(e: AppointmentEvent) {
     await this.toCustomer(e, 'appointment.confirmed');
@@ -153,6 +158,7 @@ export class NotificationsService {
           appointmentId: e.appointmentId,
           manageToken: e.manageToken,
           reason: e.cancelReason,
+          previousStartsAt: e.previousStartsAt,
           appointment: {
             customerName: e.customerName,
             serviceName: e.serviceName,

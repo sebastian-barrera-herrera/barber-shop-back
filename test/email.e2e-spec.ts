@@ -137,4 +137,30 @@ describe('Correos al cliente (e2e)', () => {
     expect(mails[0]).toMatchObject({ to: 'ana@correo.com' });
     expect(mails[0].subject).toMatch(/^Tu cita en Negocio alpha:/); // confirmada de una vez
   });
+
+  it('si el negocio mueve la cita a otra hora, el cliente recibe "cambió" con el .ics nuevo', async () => {
+    const appt = await prisma.appointment.findFirstOrThrow({
+      where: { customer: { email: 'ana@correo.com' }, status: 'CONFIRMED' },
+    });
+    mails.splice(0);
+    await http()
+      .patch(api(`/appointments/${appt.id}`))
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ startsAt: localIso(MONDAY, '16:00') })
+      .expect(200);
+    await waitForMail(mails, 1);
+    expect(mails[0].subject).toMatch(/^Tu cita en Negocio alpha cambió:/);
+    expect(mails[0].text).toMatch(/Antes: .* a las 3:00/);
+    expect(mails[0].attachments?.[0]).toMatchObject({ filename: 'cita.ics' });
+
+    // Cambiar solo las notas no envía nada.
+    mails.splice(0);
+    await http()
+      .patch(api(`/appointments/${appt.id}`))
+      .set('Authorization', `Bearer ${owner}`)
+      .send({ notes: 'Trae foto de referencia' })
+      .expect(200);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(mails).toHaveLength(0);
+  });
 });
