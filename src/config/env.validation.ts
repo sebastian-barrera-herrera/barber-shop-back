@@ -23,6 +23,22 @@ export const envSchema = z.object({
     .transform((v) => v || undefined),
 
   ENCRYPTION_KEY: z.string().optional(),
+
+  /** URL pública de esta API (para armar URLs de archivos subidos). */
+  API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
+  /** URL pública de la web (para volver desde la pasarela de pago). */
+  WEB_URL: z.string().url().default('http://localhost:3000'),
+  UPLOADS_DIR: z.string().default('uploads'),
+
+  // Wompi: respaldo si el negocio no configuró sus llaves en el panel (modo un solo negocio).
+  WOMPI_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+  WOMPI_PUBLIC_KEY: z.string().optional(),
+  WOMPI_PRIVATE_KEY: z.string().optional(),
+  WOMPI_INTEGRITY_SECRET: z.string().optional(),
+  WOMPI_EVENTS_SECRET: z.string().optional(),
+
+  /** Recordatorios automáticos (requieren un canal hacia el cliente: email/WhatsApp/SMS). */
+  REMINDERS_ENABLED: bool,
 });
 
 export type Env = z.infer<typeof envSchema>;

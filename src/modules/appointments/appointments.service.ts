@@ -4,10 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { professionalScope } from '../../common/access';
 import type { AuthUser } from '../../common/auth-user';
+import { EVENTS, type AppointmentEvent } from '../../common/events';
 import { Page, paging } from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
@@ -48,11 +50,23 @@ const PUBLIC_INCLUDE = {
 const TERMINAL = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
 const OVERLAP_MESSAGE = 'Esa hora acaba de ocuparse. Elige otra';
 
-/** La restricción de exclusión de la BD rechazó la cita (otra reserva ganó la hora). */
+/**
+ * La BD rechazó la cita por choque de horario: restricción de exclusión (23P01),
+ * o bajo mucha concurrencia, un bloqueo mutuo/serialización (40P01/40001, P2034).
+ * En todos los casos, para el cliente es lo mismo: esa hora ya no está.
+ */
 function isOverlapError(err: unknown): boolean {
   const text = err instanceof Error ? err.message : String(err);
-  return text.includes('appointments_no_overlap') || text.includes('23P01');
+  const code = (err as { code?: string })?.code;
+  return (
+    text.includes('appointments_no_overlap') ||
+    /23P01|40P01|40001|deadlock detected|could not serialize/.test(text) ||
+    code === 'P2034'
+  );
 }
+
+/** Tiempo máximo de las transacciones de reserva (holgado para picos de tráfico). */
+const TX_OPTIONS = { timeout: 10_000, maxWait: 5_000 };
 
 @Injectable()
 export class AppointmentsService {
@@ -61,6 +75,7 @@ export class AppointmentsService {
     private readonly availability: AvailabilityService,
     private readonly customers: CustomersService,
     private readonly business: BusinessService,
+    private readonly events: EventEmitter2,
   ) {}
 
   // ───────────── Web pública ─────────────
@@ -92,7 +107,11 @@ export class AppointmentsService {
             serviceId: slot.service.id,
             startsAt,
             endsAt: new Date(startsAt.getTime() + slot.service.durationMinutes * 60_000),
-            status: biz.settings.booking.autoConfirm ? 'CONFIRMED' : 'PENDING',
+            // Con pago obligatorio, la cita se confirma al pagar.
+            status:
+              biz.settings.booking.autoConfirm && biz.settings.booking.paymentMode !== 'REQUIRED'
+                ? 'CONFIRMED'
+                : 'PENDING',
             source: 'WEB',
             serviceNameSnapshot: slot.service.name,
             priceCents: slot.service.priceCents,
@@ -102,9 +121,10 @@ export class AppointmentsService {
           },
           include: PUBLIC_INCLUDE,
         });
-      }),
+      }, TX_OPTIONS),
     );
 
+    this.emit(EVENTS.appointmentCreated, appointment, 'WEB');
     return { appointment: this.presentPublic(appointment, biz), manageToken: token };
   }
 
@@ -128,6 +148,7 @@ export class AppointmentsService {
       },
       include: PUBLIC_INCLUDE,
     });
+    this.emit(EVENTS.appointmentCancelled, updated, 'CUSTOMER');
     return this.presentPublic(updated, biz);
   }
 
@@ -221,8 +242,9 @@ export class AppointmentsService {
           include: DETAIL_INCLUDE,
           omit: { accessTokenHash: true },
         });
-      }),
+      }, TX_OPTIONS),
     );
+    this.emit(EVENTS.appointmentCreated, { ...created, customer: created.customer }, 'ADMIN');
     return { ...created, manageToken: token };
   }
 
@@ -287,7 +309,7 @@ export class AppointmentsService {
           include: DETAIL_INCLUDE,
           omit: { accessTokenHash: true },
         });
-      }),
+      }, TX_OPTIONS),
     );
   }
 
@@ -317,6 +339,29 @@ export class AppointmentsService {
   }
 
   // ───────────── helpers ─────────────
+
+  private emit(
+    event: string,
+    appt: {
+      id: string;
+      businessId: string;
+      startsAt: Date;
+      serviceNameSnapshot: string;
+      customer: { name: string };
+      professional: { name: string };
+    },
+    source: AppointmentEvent['source'],
+  ) {
+    this.events.emit(event, {
+      businessId: appt.businessId,
+      appointmentId: appt.id,
+      customerName: appt.customer.name,
+      serviceName: appt.serviceNameSnapshot,
+      professionalName: appt.professional.name,
+      startsAt: appt.startsAt,
+      source,
+    } satisfies AppointmentEvent);
+  }
 
   /**
    * En el panel: con `allowOutsideHours` solo se valida que el profesional haga el servicio
@@ -401,6 +446,7 @@ export class AppointmentsService {
       notes: appt.notes,
       customer: { name: appt.customer.name },
       professional: appt.professional,
+      paymentStatus: appt.paymentStatus,
       canCancel: ['PENDING', 'CONFIRMED'].includes(appt.status) && new Date() < deadline,
       cancelDeadline: deadline,
     };
