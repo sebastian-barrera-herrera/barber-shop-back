@@ -18,8 +18,9 @@ Backend de la plataforma de reservas para barberías, salones de belleza, spa y 
 | Clientes (sin duplicados por teléfono), dashboard, reportes, buscador | ✅ |
 | Chat cliente ↔ negocio (preparado para WhatsApp/Instagram/Messenger/Telegram) | ✅ |
 | Pagos con Wompi detrás de `PaymentProvider` (preparado para Stripe/PayU) | ✅ |
-| Notificaciones internas por eventos (preparado para email/WhatsApp/SMS/push) | ✅ |
-| Recordatorios 24 h / 2 h (listos; se activan con un canal hacia el cliente) | ✅ |
+| Notificaciones internas por eventos (preparado para WhatsApp/SMS/push) | ✅ |
+| Correos al cliente por SMTP: reserva, confirmada, cambió de hora, cancelada; con `.ics` | ✅ |
+| Recordatorios 24 h / 2 h por correo (con `REMINDERS_ENABLED=true`) | ✅ |
 | Configuración del negocio (marca, redes, horario, reservas), subida de imágenes | ✅ |
 
 ---
@@ -53,7 +54,9 @@ Todas están en [.env.example](.env.example). La app las valida al arrancar y se
 | `COOKIE_SECURE` | Producción | `true` con HTTPS |
 | `COOKIE_DOMAIN` | Opcional | `.tudominio.com` si web y API usan subdominios |
 | `WOMPI_*` | Opcional | Llaves de respaldo si el negocio no las configura en el panel |
-| `REMINDERS_ENABLED` | Opcional | Recordatorios automáticos (requieren un canal hacia el cliente) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | Opcional | Servidor de correo (Gmail, Resend, SES, Mailgun…). Sin `SMTP_HOST` no se envían correos |
+| `MAIL_FROM` | Opcional | Remitente, p. ej. `Studio <reservas@tudominio.com>` |
+| `REMINDERS_ENABLED` | Opcional | Recordatorios automáticos por correo (requieren SMTP) |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Para el seed | Usuario administrador inicial |
 
 Generar secretos:
@@ -98,6 +101,10 @@ npm run build && npm start   # producción
 - Salud: http://localhost:4000/health
 
 ## 7. Docker
+
+En desarrollo, `docker compose up -d` también levanta **Mailpit**: atrapa todos los correos
+(no sale nada a internet). Con `SMTP_HOST=localhost` y `SMTP_PORT=1025` en el `.env`,
+se ven en http://localhost:8025.
 
 ```bash
 docker compose up -d --build                  # PostgreSQL + API (migra al arrancar)
