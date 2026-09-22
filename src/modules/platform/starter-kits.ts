@@ -6,8 +6,6 @@ import type { BusinessStyle, BusinessType } from '@prisma/client';
  */
 export interface StarterKit {
   preset: string;
-  primaryColor: string;
-  secondaryColor: string;
   heroTitle: string;
   heroSubtitle: string;
   ownerTitle: string;
@@ -16,8 +14,6 @@ export interface StarterKit {
 
 const BARBER: StarterKit = {
   preset: 'clasico',
-  primaryColor: '#1C1B1A',
-  secondaryColor: '#B23A3A',
   heroTitle: 'El buen corte no pasa de moda.',
   heroSubtitle: 'Reserva tu silla en un minuto. Sin llamadas, sin esperas.',
   ownerTitle: 'Barbero',
@@ -43,8 +39,6 @@ const BARBER: StarterKit = {
 
 const SPA: StarterKit = {
   preset: 'spa',
-  primaryColor: '#141412',
-  secondaryColor: '#A8854A',
   heroTitle: 'Un rato para ti.',
   heroSubtitle: 'Reserva tu cita en un minuto y llega a desconectarte.',
   ownerTitle: 'Especialista',

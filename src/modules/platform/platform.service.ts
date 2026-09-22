@@ -84,10 +84,9 @@ export class PlatformService {
               city: dto.city || null,
               settings: {
                 create: {
+                  // Sin colores propios: manda la paleta del estilo hasta que el dueño la cambie.
                   branding: {
                     preset: kit.preset,
-                    primaryColor: kit.primaryColor,
-                    secondaryColor: kit.secondaryColor,
                     heroTitle: kit.heroTitle,
                     heroSubtitle: kit.heroSubtitle,
                   },

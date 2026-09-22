@@ -333,8 +333,6 @@ async function seedBarberia() {
             create: {
               branding: {
                 preset: 'clasico',
-                primaryColor: '#1C1B1A',
-                secondaryColor: '#B23A3A',
                 heroTitle: 'El buen corte no pasa de moda.',
                 heroSubtitle: 'Reserva tu silla en un minuto. Sin llamadas, sin esperas.',
               },
