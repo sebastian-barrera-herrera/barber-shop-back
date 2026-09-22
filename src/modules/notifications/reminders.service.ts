@@ -74,7 +74,21 @@ export class RemindersService implements OnModuleInit {
           title: `Tu cita en ${a.business.name} es ${w.label} a las ${time}`,
           body: `${a.serviceNameSnapshot} con ${a.professional.name}`,
           customer: { name: a.customer.name, phone: a.customer.phone, email: a.customer.email },
-          data: { appointmentId: a.id },
+          data: {
+            appointmentId: a.id,
+            email: {
+              appointmentId: a.id,
+              appointment: {
+                customerName: a.customer.name,
+                serviceName: a.serviceNameSnapshot,
+                professionalName: a.professional.name,
+                startsAt: a.startsAt,
+                durationMinutes: a.durationMinutes,
+                priceCents: a.priceCents,
+                status: a.status,
+              },
+            },
+          },
         });
         if (delivered > 0) {
           await this.prisma.appointment.update({

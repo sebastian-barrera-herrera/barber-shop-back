@@ -53,6 +53,7 @@ export class NotificationsService {
 
   @OnEvent(EVENTS.appointmentCreated, { async: true })
   async onAppointmentCreated(e: AppointmentEvent) {
+    await this.toCustomer(e, 'appointment.booked');
     if (e.source !== 'WEB') return; // las del panel las creó el propio equipo
     const when = await this.when(e.businessId, e.startsAt);
     await this.notify({
@@ -65,9 +66,18 @@ export class NotificationsService {
     });
   }
 
+  @OnEvent(EVENTS.appointmentConfirmed, { async: true })
+  async onAppointmentConfirmed(e: AppointmentEvent) {
+    await this.toCustomer(e, 'appointment.confirmed');
+  }
+
   @OnEvent(EVENTS.appointmentCancelled, { async: true })
   async onAppointmentCancelled(e: AppointmentEvent) {
-    if (e.source !== 'CUSTOMER') return;
+    // Si canceló el negocio, se le avisa al cliente; si canceló el cliente, al equipo.
+    if (e.source !== 'CUSTOMER') {
+      await this.toCustomer(e, 'appointment.cancelled.byBusiness');
+      return;
+    }
     const when = await this.when(e.businessId, e.startsAt);
     await this.notify({
       businessId: e.businessId,
@@ -125,6 +135,35 @@ export class NotificationsService {
     await this.prisma.notification.updateMany({
       where: { businessId, readAt: null },
       data: { readAt: new Date() },
+    });
+  }
+
+  /** Aviso al cliente (correo hoy; WhatsApp/SMS cuando existan esos canales). */
+  private async toCustomer(e: AppointmentEvent, type: string) {
+    if (!e.customer) return;
+    await this.notify({
+      businessId: e.businessId,
+      audience: 'CUSTOMER',
+      type,
+      title: e.serviceName,
+      customer: e.customer,
+      data: {
+        appointmentId: e.appointmentId,
+        email: {
+          appointmentId: e.appointmentId,
+          manageToken: e.manageToken,
+          reason: e.cancelReason,
+          appointment: {
+            customerName: e.customerName,
+            serviceName: e.serviceName,
+            professionalName: e.professionalName,
+            startsAt: e.startsAt,
+            durationMinutes: e.durationMinutes ?? 30,
+            priceCents: e.priceCents ?? 0,
+            status: e.status ?? 'PENDING',
+          },
+        },
+      },
     });
   }
 

@@ -37,6 +37,23 @@ export const envSchema = z.object({
   WOMPI_INTEGRITY_SECRET: z.string().optional(),
   WOMPI_EVENTS_SECRET: z.string().optional(),
 
+  // Correo (SMTP). Sin SMTP_HOST, no se envían correos.
+  SMTP_HOST: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: bool,
+  SMTP_USER: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
+  SMTP_PASS: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
+  MAIL_FROM: z.string().default('Studio <no-reply@studio.local>'),
+
   /** Recordatorios automáticos (requieren un canal hacia el cliente: email/WhatsApp/SMS). */
   REMINDERS_ENABLED: bool,
 });
