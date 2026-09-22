@@ -235,7 +235,7 @@ export function rescheduledEmail(
   const before = `${fmtDate(previous, b.timezone).toLowerCase()} a las ${fmtTime(previous, b.timezone)}`;
   const now = `${fmtDate(a.startsAt, b.timezone).toLowerCase()} a las ${fmtTime(a.startsAt, b.timezone)}`;
   const title = `Tu cita cambió de hora, ${firstName(a.customerName)}.`;
-  const lead = `Antes: ${before}. Ahora: ${now}.`;
+  const lead = `Antes: ${before} · Ahora: ${now}`;
   const help = 'Si la nueva hora no te sirve, escríbenos desde el enlace del correo de tu reserva.';
   return {
     subject: `Tu cita en ${b.name} cambió: ${now}`,
