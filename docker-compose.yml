@@ -1,5 +1,6 @@
 # Desarrollo local.
 #   Solo base de datos:   docker compose up -d db
+#   Correo de prueba:     docker compose up -d mail   (bandeja en http://localhost:8025)
 #   Base de datos + API:  docker compose up -d --build
 services:
   db:
@@ -35,6 +36,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # Buzón de pruebas: atrapa los correos (no los envía) y los muestra en http://localhost:8025
+  mail:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAIL_SMTP_PORT:-1025}:1025"
+      - "${MAIL_UI_PORT:-8025}:8025"
 
 volumes:
   pgdata:

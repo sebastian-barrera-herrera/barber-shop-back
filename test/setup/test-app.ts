@@ -4,18 +4,29 @@ import { Role } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { hashPassword } from '../../src/modules/auth/password';
+import {
+  MAIL_TRANSPORT,
+  type MailMessage,
+} from '../../src/modules/notifications/email/mail-transport';
 import { addDays, toLocalDate, weekdayOf, zonedToUtc } from '../../src/common/utils/time';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { API_PREFIX, setupApp } from '../../src/setup-app';
 
 export const PASSWORD = 'clave-de-prueba-123';
 
+/** Correos "enviados" durante los tests (transporte en memoria, sin red). */
+export interface CapturedMail extends MailMessage {}
+
 export async function createTestApp() {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const mails: CapturedMail[] = [];
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(MAIL_TRANSPORT)
+    .useValue({ enabled: true, send: async (m: MailMessage) => void mails.push(m) })
+    .compile();
   const app = moduleRef.createNestApplication();
   setupApp(app);
   await app.init();
-  return { app, prisma: app.get(PrismaService) };
+  return { app, prisma: app.get(PrismaService), mails };
 }
 
 /** Vacía las tablas de la base de tests (solo corre contra una base "_test"). */

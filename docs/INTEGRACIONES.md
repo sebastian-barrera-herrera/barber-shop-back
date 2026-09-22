@@ -5,7 +5,7 @@ La arquitectura deja puntos de extensión para que cada integración sea "implem
 | Integración | Punto de extensión | Qué implementar |
 |---|---|---|
 | **WhatsApp / Instagram / Messenger / Telegram** (chat) | `ChannelAdapter` en `src/modules/chat/channels/` | `deliver()` para enviar por la API del proveedor; un webhook que llame a `ChatService.receiveFromChannel()` con el cliente y el `externalId` |
-| **Email / WhatsApp / SMS** (avisos al cliente) | `NotificationChannel` en `src/modules/notifications/channels/` | `supports()` para la audiencia `CUSTOMER` y `send()`. Al registrar un canal así, los recordatorios 24 h / 2 h empiezan a salir (con `REMINDERS_ENABLED=true`) |
+| **WhatsApp / SMS** (avisos al cliente) | `NotificationChannel` en `src/modules/notifications/channels/` | `supports()` para la audiencia `CUSTOMER` y `send()`. Al registrar un canal así, los recordatorios 24 h / 2 h empiezan a salir (con `REMINDERS_ENABLED=true`) |
 | **Push** (avisos al equipo) | `NotificationChannel` con audiencia `STAFF` | Web Push con claves VAPID |
 | **Stripe / PayU** | `PaymentProvider` en `src/modules/payments/providers/` | checkout, consulta de transacción y verificación de webhook |
 | **Google Calendar** | Evento `appointment.created` / `appointment.cancelled` | Un listener (`@OnEvent`) que cree o borre el evento en el calendario del profesional |
@@ -16,3 +16,9 @@ La arquitectura deja puntos de extensión para que cada integración sea "implem
 
 Todas las integraciones reaccionan a **eventos de dominio** (`src/common/events.ts`), así que no hay que tocar
 el módulo de citas ni el de pagos para agregarlas.
+
+## Ya implementado: correo
+
+`EmailChannel` (`src/modules/notifications/channels/email.channel.ts`) sirve de ejemplo de canal hacia el cliente.
+Usa SMTP detrás de `MailTransport` (`MAIL_TRANSPORT`), así que cambiar a la API de Resend o SES es
+implementar `send()` y registrarlo con ese token. Los tests lo reemplazan por un transporte en memoria.
