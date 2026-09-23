@@ -51,3 +51,16 @@ cambiar la estrategia de cookie.
 - Configura Wompi en producción y registra la URL de eventos `https://api.tudominio.com/api/v1/payments/webhooks/wompi`.
 - Revisa `https://tudominio.com/sitemap.xml` y regístralo en Google Search Console.
 - Respaldos automáticos de la base de datos (casi todos los proveedores lo incluyen).
+
+## Railway (lo que está corriendo hoy)
+
+Proyecto con tres servicios: **Postgres**, **barber-shop-back** y **barber-shop-front**.
+
+- Cada repo trae `railway.json`, que apunta a su `docker/Dockerfile`.
+- El backend corre migraciones y datos de ejemplo en el *pre-deploy*:
+  `npx prisma migrate deploy && node dist/seed/seed.js && SEED_BUSINESS_SLUG=… node dist/seed/seed-demo.js`
+  (los seeds viven en `src/seed/`, así quedan compilados: en producción no hay ts-node).
+- Un volumen montado en `/app/uploads` guarda logos y fotos; sin él se pierden en cada despliegue.
+- Web y API están en dominios distintos, así que la cookie de sesión necesita
+  `COOKIE_SECURE=true` y `COOKIE_SAMESITE=none`, y `CORS_ORIGINS` con el dominio de la web.
+- Las variables `NEXT_PUBLIC_*` del front se fijan al compilar: cambiarlas exige un despliegue nuevo.
